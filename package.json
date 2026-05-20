@@ -29,7 +29,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -42,12 +44,17 @@
     "rxjs": ">=7.0.0"
   },
   "peerDependenciesMeta": {
-    "rxjs": { "optional": true }
+    "rxjs": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "rxjs": "^7.8.2",
     "tsup": "^8.0.0",
     "typescript": "~5.7.2",
     "vitest": "^2.0.0"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
