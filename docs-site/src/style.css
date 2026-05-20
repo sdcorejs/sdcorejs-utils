@@ -12,6 +12,7 @@
   --text-muted:     #6b7280;
   --valid:          #16a34a;
   --invalid:        #dc2626;
+  --surface-hover:  #f9fffe;
   --radius:         6px;
   --shadow:         0 1px 3px rgba(0,0,0,.08);
 }
@@ -32,13 +33,12 @@ body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg);
 .tab-content { max-width: 1280px; margin: 0 auto; padding: 24px; }
 
 table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
-th { background: #f0fdfa; color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .5px; padding: 10px 14px; text-align: left; text-transform: uppercase; }
+th { background: var(--bg); color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .5px; padding: 10px 14px; text-align: left; text-transform: uppercase; }
 td { border-top: 1px solid var(--border); padding: 10px 14px; vertical-align: top; }
-tr:hover td { background: #f9fffe; }
+tr:hover td { background: var(--surface-hover); }
 
 .code-block { background: #0d1117; border-radius: var(--radius); color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.6; overflow-x: auto; padding: 16px; }
 .code-block .kw { color: #ff7b72; }
-.code-block .ty { color: #79c0ff; }
 .code-block .st { color: #a5d6ff; }
 .code-block .cm { color: #8b949e; }
 

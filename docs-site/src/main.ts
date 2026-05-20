@@ -39,11 +39,12 @@ function mount(): void {
   content.className = 'tab-content';
 
   const tabBar = renderTabBar(TABS, activeTab, (id) => {
+    if (!(id in RENDERERS)) return;
     activeTab = id as TabId;
     tabBar.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach(btn =>
       btn.classList.toggle('active', btn.dataset.tab === id)
     );
-    content.innerHTML = '';
+    content.replaceChildren();
     RENDERERS[activeTab](content);
   });
 
