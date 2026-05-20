@@ -4,6 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
     "lib": ["ES2022", "DOM"],
     "paths": {
       "@sdcorejs/utils":            ["../src/index.ts"],
