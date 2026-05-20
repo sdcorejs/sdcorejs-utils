@@ -93,8 +93,8 @@ const upload = (option?: { extensions?: string[]; maxSizeInMb?: number; validato
               }
               files.push(file);
             }
-            resolve(files);
           }
+          resolve(files);
         } else {
           const file = target.files.item(0);
           if (file) {

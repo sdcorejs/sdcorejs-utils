@@ -32,7 +32,7 @@ const isNumber = (value: any) => {
 };
 
 const round = (value: any, digits = 2): number | null => {
-  if (!NumberUtilities.isNumber(value)) return null;
+  if (!isNumber(value)) return null;
   const val = Math.pow(10, digits);
   return Math.round(value * val) / val;
 };
