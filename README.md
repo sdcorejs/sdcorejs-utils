@@ -1,238 +1,340 @@
 # @sdcorejs/utils
 
-Pure TypeScript utility library — models, constants, and functions shared across sdcorejs projects. Framework-agnostic (no Angular or React dependency).
+<p align="center">
+  <b>Enterprise-grade TypeScript utilities for modern web applications.</b>
+</p>
 
-## Installation
+<p align="center">
+  Framework agnostic • Fully typed • Tree-shakable • AI-friendly
+</p>
+
+<p align="center">
+
+  <a href="https://www.npmjs.com/package/@sdcorejs/utils">
+    <img src="https://img.shields.io/npm/v/@sdcorejs/utils.svg" alt="npm version" />
+  </a>
+
+  <a href="https://www.npmjs.com/package/@sdcorejs/utils">
+    <img src="https://img.shields.io/npm/dm/@sdcorejs/utils.svg" alt="npm downloads" />
+  </a>
+
+  <a href="https://github.com/sdcorejs/sdcorejs-utils/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/sdcorejs/sdcorejs-utils/release.yml" alt="build status" />
+  </a>
+
+  <a href="https://github.com/sdcorejs/sdcorejs-utils/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/sdcorejs/sdcorejs-utils" alt="license" />
+  </a>
+
+  <a href="https://bundlephobia.com/package/@sdcorejs/utils">
+    <img src="https://img.shields.io/bundlephobia/minzip/@sdcorejs/utils" alt="bundle size" />
+  </a>
+
+  <a href="https://www.npmjs.com/package/@sdcorejs/utils">
+    <img src="https://img.shields.io/npm/types/@sdcorejs/utils" alt="types included" />
+  </a>
+
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@sdcorejs/utils">npm</a>
+  ·
+  <a href="https://github.com/sdcorejs/sdcorejs-utils">GitHub</a>
+  ·
+  <a href="https://sdcorejs.github.io/sdcorejs-ultis/">Live Demo</a>
+</p>
+
+---
+
+## ✨ Features
+
+* ✅ Pure TypeScript — no Angular or React dependency
+* ✅ Fully typed APIs
+* ✅ Tree-shakable subpath exports
+* ✅ ESM + CommonJS support
+* ✅ Enterprise-ready query & paging models
+* ✅ Built-in validation patterns
+* ✅ Browser, Date, String, Number, and Array utilities
+* ✅ AI-friendly semantic contracts & naming
+* ✅ Lightweight runtime dependencies
+
+---
+
+# 📦 Installation
 
 ```bash
 npm install @sdcorejs/utils
 ```
 
-> **Optional peer dependency:** `rxjs` is required only if you use `MaybeAsync`, `resolveMaybeAsync`, or `normalizeAsync` from the `models` subpath.
+> Optional peer dependency: `rxjs` is required only when using async helpers such as `MaybeAsync`, `resolveMaybeAsync`, or `normalizeAsync`.
 
-## Subpath exports
+---
+
+# 🚀 Quick Examples
+
+## Validation
 
 ```ts
-import { ... } from '@sdcorejs/utils'           // everything (barrel)
-import { ... } from '@sdcorejs/utils/models'     // types & interfaces only
-import { ... } from '@sdcorejs/utils/constants'  // constants only
-import { ... } from '@sdcorejs/utils/fns'        // utility objects & functions
+import { StringUtilities } from '@sdcorejs/utils/fns';
+
+StringUtilities.isValidEmail('test@gmail.com');
+// true
 ```
 
 ---
 
+## Date Formatting
+
+```ts
+import { DateUtilities } from '@sdcorejs/utils/fns';
+
+DateUtilities.toFormat(new Date(), 'yyyy-MM-dd HH:mm');
+```
+
+---
+
+## Exhaust Paginated API
+
+```ts
+import { Utilities } from '@sdcorejs/utils/fns';
+
+const users = await Utilities.fetchAllByPaging(
+  (pageSize, pageNumber) => api.getUsers(pageSize, pageNumber)
+);
+```
+
+---
+
+## Typed Query Models
+
+```ts
+import { PagingReq } from '@sdcorejs/utils/models';
+
+const query: PagingReq<User> = {
+  pageSize: 20,
+  pageNumber: 0,
+  filters: [
+    {
+      field: 'name',
+      operator: 'LIKE',
+      data: 'john'
+    }
+  ]
+};
+```
+
+---
+
+# 📚 Subpath Exports
+
+```ts
+import { ... } from '@sdcorejs/utils'             // everything
+import { ... } from '@sdcorejs/utils/models'      // types & interfaces
+import { ... } from '@sdcorejs/utils/constants'   // constants
+import { ... } from '@sdcorejs/utils/fns'         // utility functions
+```
+
+Optimized for tree-shaking and modular imports.
+
+---
+
+# 🧩 Package Structure
+
 ## `@sdcorejs/utils/models`
 
-### Paging & filtering
+Typed models, interfaces, and utility types for enterprise applications.
 
-| Export | Description |
-|---|---|
-| `Filter<T>` | Union of all filter variants |
-| `FilterHasData<T>` | Filter with a scalar `data` value |
-| `FilterBetween<T>` | Filter with `{ from, to }` range |
-| `FilterNoData<T>` | Null-check filter (no data) |
-| `FilterAndOr<T>` | Logical AND/OR group |
-| `Order<T>` | Sort descriptor — `{ field, direction }` |
-| `QueryReq<T>` | Base query with optional filters + fields |
-| `PagingReq<T>` | Extends `QueryReq` with page size, number, orders |
-| `PagingRes<T>` | Response — `{ items: T[], total: number }` |
+### Includes
 
-### Type utilities
+* Query & paging contracts
+* Filtering models
+* Validation pattern types
+* Async utility types
+* Primitive shared types
 
-| Export | Description |
-|---|---|
-| `NestedKeyOf<T>` | Dot-path keys of `T`, depth-limited to 4 levels |
-| `Operator` | Union of all operator string literals |
-| `OperatorHasData` | Operators that require a data value |
-| `OperatorNoData` | `'NULL' \| 'NOT_NULL'` |
-| `ValidationPatternType` | Validator pattern keys (`'EMAIL'`, `'VN_PHONE'`, `'UUID'`, …) |
-| `ValidationPattern` | Pattern descriptor — `{ type, name, pattern, errorMessage }` |
-| `MaybeAsync<T>` | `T \| Promise<T> \| Observable<T>` |
+### Highlights
 
-### Primitive types
-
-| Export | Values |
-|---|---|
-| `Size` | `'sm' \| 'md' \| 'lg'` |
-| `Color` | `'primary' \| 'secondary' \| 'info' \| 'success' \| 'warning' \| 'error'` |
-| `Language` | `'vi' \| 'en' \| 'ja' \| 'ko' \| 'zh'` |
-| `MaterialIconFontSet` | Legacy Material Icons font set identifiers |
-| `MaterialSymbolFontSet` | Material Symbols (variable font) font set identifiers |
-
-### Async helpers (requires `rxjs`)
-
-| Export | Description |
-|---|---|
-| `resolveMaybeAsync<T>(value)` | Converts `MaybeAsync<T>` → `Promise<T>` |
-| `normalizeAsync<T>(value)` | Converts `MaybeAsync<T>` → `Observable<T>` |
+| Export                  | Description                            |
+| ----------------------- | -------------------------------------- |
+| `PagingReq<T>`          | Query with paging, filters, sorting    |
+| `PagingRes<T>`          | Standard paginated response            |
+| `Filter<T>`             | Typed filtering system                 |
+| `NestedKeyOf<T>`        | Dot-path keys of nested objects        |
+| `MaybeAsync<T>`         | `T \| Promise<T> \| Observable<T>`     |
+| `ValidationPatternType` | Built-in validator pattern identifiers |
 
 ---
 
 ## `@sdcorejs/utils/constants`
 
-| Export | Description |
-|---|---|
-| `EMPTY_STR` | `'--'` — default display for empty values |
-| `OPERATORS` | Array of `{ value, symbol, display }` for all 14 operators |
-| `VALIDATION_PATTERNS` | Array of `ValidationPattern` for all 22 built-in validators |
-| `SUPPORTED_LANGUAGES` | `readonly ['vi', 'en', 'ja', 'ko', 'zh']` |
-| `DEFAULT_MATERIAL_ICON_FONT_SET` | `'material-icons-outlined'` |
-| `DEFAULT_MATERIAL_SYMBOL_FONT_SET` | `'material-symbols-outlined'` |
+Shared constants and reusable metadata definitions.
+
+### Highlights
+
+| Export                | Description                   |
+| --------------------- | ----------------------------- |
+| `OPERATORS`           | All supported query operators |
+| `VALIDATION_PATTERNS` | Built-in validation metadata  |
+| `SUPPORTED_LANGUAGES` | Supported i18n language list  |
+| `EMPTY_STR`           | Default empty display value   |
 
 ---
 
 ## `@sdcorejs/utils/fns`
 
-### `StringUtilities`
-
-```ts
-import { StringUtilities } from '@sdcorejs/utils/fns';
-```
-
-**Regex pattern strings** — pass directly to `Validators.pattern()` or `new RegExp()`:
-
-| Constant | Matches |
-|---|---|
-| `REGEX_EMAIL` | Standard email address |
-| `REGEX_PHONE` | Generic international phone |
-| `REGEX_VN_PHONE` | Vietnamese mobile phone number |
-| `REGEX_VN_ID` | Vietnamese national ID (CCCD/CMND, 12 digits) |
-| `REGEX_PASSPORT` | International passport (letter + 7 digits) |
-| `REGEX_VN_ID_OR_PASSPORT` | Either VN_ID or PASSPORT |
-| `REGEX_TIME` | `HH:mm` time string |
-| `REGEX_URL` | HTTP/HTTPS URL |
-| `REGEX_DOMAIN` | Bare domain name |
-| `REGEX_IPV4` | IPv4 address |
-| `REGEX_IPV6` | IPv6 address |
-| `REGEX_IMAGE_URL` | HTTP/HTTPS URL ending with image extension |
-| `REGEX_SLUG` | URL-friendly slug (lowercase, digits, hyphens) |
-| `REGEX_NUMBER` | Integer or decimal, optionally negative |
-| `REGEX_INTEGER` | Whole number, optionally negative |
-| `REGEX_DECIMAL` | Number with mandatory decimal point |
-| `REGEX_POSITIVE_NUMBER` | Non-negative integer or decimal |
-| `REGEX_UUID` | UUID (lowercase hex, hyphen-separated) |
-| `REGEX_CODE_16` | 16-character alphanumeric code |
-| `REGEX_CODE_32` | 32-character alphanumeric code |
-| `REGEX_HEX_COLOR` | CSS hex color (`#RGB` or `#RRGGBB`) |
-| `REGEX_BASE64` | Base64-encoded string |
-
-**Functions:**
-
-| Member | Description |
-|---|---|
-| `isValidEmail(v)` | Email format check |
-| `isValidPhone(v)` | Phone format check |
-| `isValidCode(v)` | Alphanumeric code (2–20 chars) |
-| `isNullOrEmpty(v)` | `null \| undefined \| ''` |
-| `isNullOrWhiteSpace(v)` | Whitespace-only string check |
-| `changeAliasLowerCase(s)` | Strip Vietnamese diacritics + lowercase |
-| `aliasIncludes(text, search)` | Diacritic-insensitive `includes` |
-| `format(template, ...args)` | `{0}`, `{1}` placeholder substitution |
-| `templateToDisplay(template, entity)` | `${field.path}` interpolation |
-| `parseExpression(template, entity)` | Expression → typed value |
-| `encrypt(obj)` / `decrypt(str)` | Lightweight reversible encoding |
-| `convertToSnakeCaseCode(name)` | Vietnamese name → `snake_case` |
-| `generateUniqueCode(name, existing)` | Unique snake_case code with suffix |
-| `sha256(input)` | Async URL-safe base64 SHA-256 |
-
-### `ArrayUtilities`
-
-```ts
-import { ArrayUtilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `search(items, text, fields?, children?)` | Diacritic-insensitive search with optional tree traversal |
-| `union(key, ...arrays)` | Merge arrays, deduplicate by key |
-| `toObject(key, items)` | `T[]` → `Record<string, T>` |
-| `distinct(items)` | Remove duplicates (`Set`) |
-| `paging(items, pageSize, page?)` | Client-side slice |
-
-### `NumberUtilities`
-
-```ts
-import { NumberUtilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `toVNCurrency(v)` / `toVN(v)` | Format as Vietnamese locale number |
-| `toISO(v)` | Format as US locale number |
-| `isNumber(v)` | True for any numeric-coercible value |
-| `isPositiveInteger(v)` | Integer > 0 |
-| `isPositiveNumber(v)` | Number > 0 (decimal allowed) |
-| `round(v, digits?)` | Round to N decimal places (default 2) |
-
-### `DateUtilities`
-
-```ts
-import { DateUtilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `isDate(v)` | Validates date string or value |
-| `toFormat(v, format)` | Format date — tokens: `yyyy MM dd HH mm ss` |
-| `parseFrom(v, format)` | Parse date string by format pattern |
-| `equal(d1, d2)` | Deep equality by timestamp |
-| `dayDiff(d1, d2)` / `monthDiff` / `yearDiff` | Numeric difference |
-| `age(d1, d2)` | Age in years (decimal) |
-| `addMiliseconds` / `addHours` / `addDays` / `addMonths` | Date arithmetic |
-| `begin(d)` / `end(d)` | Start/end of day |
-| `timeDifference(prev, now?)` | Human-readable elapsed time |
-
-### `ColorUtilities`
-
-```ts
-import { ColorUtilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `hslToHex(h, s, l)` | HSL → hex colour string |
-| `rgbToHex(r, g, b)` | RGB → hex colour string |
-
-### `BrowserUtilities`
-
-```ts
-import { BrowserUtilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `upload(option?)` | Opens file picker, validates extension/size, returns `File \| File[]` |
-| `download(fileOrPath, fileName?)` | Download `File` or URL |
-| `downloadBlob(blob, fileName?)` | Download a `Blob` |
-| `copyToClipboard(text)` | Write to clipboard |
-| `isMobile()` | Detect mobile user agent |
-| `detectIncognito()` | Cross-browser private-mode detection — returns `Promise<{ isPrivate, browserName }>` |
-
-### `Utilities`
-
-```ts
-import { Utilities } from '@sdcorejs/utils/fns';
-```
-
-| Member | Description |
-|---|---|
-| `fetchAllByPaging(fn, pageSize?)` | Exhaust paginated API, collect all items |
-| `randomId(prefix?)` | Time+random base-36 ID |
-| `hash(obj)` | Stable djb2 hash of any value |
-| `parseQueryParams(qs?)` | Query string → `Record<string, string>` |
-| `generateUuid()` | `crypto.randomUUID()` with fallback |
-| `getNestedValue(obj, path)` | Dot-path accessor |
+Framework-agnostic utility modules.
 
 ---
 
-## Build
+### `StringUtilities`
+
+Validation, formatting, aliasing, hashing, parsing, and text helpers.
+
+#### Common regex constants
+
+* `REGEX_EMAIL`
+* `REGEX_PHONE`
+* `REGEX_VN_PHONE`
+* `REGEX_UUID`
+* `REGEX_URL`
+* `REGEX_IPV4`
+* `REGEX_HEX_COLOR`
+* `REGEX_BASE64`
+
+#### Common helpers
+
+| Member                               | Description                       |
+| ------------------------------------ | --------------------------------- |
+| `isValidEmail(v)`                    | Email format validation           |
+| `isNullOrEmpty(v)`                   | Null/undefined/empty check        |
+| `aliasIncludes(text, search)`        | Vietnamese-insensitive search     |
+| `sha256(input)`                      | URL-safe SHA-256 hashing          |
+| `generateUniqueCode(name, existing)` | Unique snake_case code generation |
+
+---
+
+### `ArrayUtilities`
+
+Array transformation and search helpers.
+
+| Member                    | Description                  |
+| ------------------------- | ---------------------------- |
+| `search(items, text)`     | Diacritic-insensitive search |
+| `union(key, ...arrays)`   | Merge & deduplicate          |
+| `paging(items, pageSize)` | Client-side paging           |
+
+---
+
+### `NumberUtilities`
+
+Number validation and formatting.
+
+| Member                | Description                    |
+| --------------------- | ------------------------------ |
+| `toVNCurrency(v)`     | Vietnamese currency formatting |
+| `round(v, digits?)`   | Decimal rounding               |
+| `isPositiveNumber(v)` | Positive number check          |
+
+---
+
+### `DateUtilities`
+
+Date parsing, formatting, comparison, and calculations.
+
+| Member                 | Description                 |
+| ---------------------- | --------------------------- |
+| `toFormat(v, format)`  | Date formatting             |
+| `parseFrom(v, format)` | Parse by format             |
+| `dayDiff(d1, d2)`      | Difference in days          |
+| `timeDifference(prev)` | Human-readable elapsed time |
+
+---
+
+### `BrowserUtilities`
+
+Browser-specific helpers.
+
+| Member                  | Description             |
+| ----------------------- | ----------------------- |
+| `upload(option?)`       | File picker helper      |
+| `download(fileOrPath)`  | File downloader         |
+| `copyToClipboard(text)` | Clipboard copy          |
+| `detectIncognito()`     | Detect private browsing |
+
+---
+
+### `Utilities`
+
+General-purpose utilities.
+
+| Member                  | Description           |
+| ----------------------- | --------------------- |
+| `fetchAllByPaging(fn)`  | Exhaust paginated API |
+| `randomId(prefix?)`     | Unique random ID      |
+| `generateUuid()`        | UUID generation       |
+| `parseQueryParams(qs?)` | Query string parser   |
+
+---
+
+# 🏗 Build
 
 ```bash
-npm run build   # tsup → dist/ (ESM + CJS + .d.ts)
-npm test        # vitest
+npm run build
 ```
 
-## Publishing
+Builds:
 
-Merge to `main` triggers GitHub Actions → `npm publish --access public`.  
-Requires `NPM_TOKEN` secret in repository settings.
+* ESM
+* CommonJS
+* `.d.ts` typings
+
+Powered by `tsup`.
+
+---
+
+# 🧪 Testing
+
+```bash
+npm test
+```
+
+Powered by `vitest`.
+
+---
+
+# 🚀 Publishing
+
+Merging into `main` automatically triggers GitHub Actions and publishes the package to npm.
+
+Requires:
+
+* `NPM_TOKEN` repository secret
+
+---
+
+# 🎯 Philosophy
+
+`@sdcorejs/utils` is designed around:
+
+* predictable APIs
+* semantic naming
+* enterprise reuse
+* minimal runtime dependencies
+* tree-shakable architecture
+* AI-friendly contracts
+
+The goal is to provide a stable utility foundation for scalable frontend and backend ecosystems.
+
+---
+
+# 🌐 Ecosystem
+
+* `@sdcorejs/utils`
+* `@sdcorejs/angular`
+* `@sdcorejs/nestjs`
+
+---
+
+# 📄 License
+
+MIT
