@@ -1,1 +1,1 @@
-export const SD_EMPTY_STR = '--';
+export const EMPTY_STR = '--';

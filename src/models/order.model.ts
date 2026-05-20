@@ -1,6 +1,6 @@
-import { SdNestedKeyOf } from './nested-key-of.model';
+import { NestedKeyOf } from './nested-key-of.model';
 
-export interface SdOrder<T = any> {
-  field: SdNestedKeyOf<T>;
+export interface Order<T = any> {
+  field: NestedKeyOf<T>;
   direction: 'ASC' | 'DESC';
 }

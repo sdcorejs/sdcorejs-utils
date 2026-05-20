@@ -1,1 +1,1 @@
-export type SdColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';
+export type Color = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error';

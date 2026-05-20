@@ -1,6 +1,6 @@
-export type SdOperator = SdOperatorHasData | SdOperatorNoData;
+export type Operator = OperatorHasData | OperatorNoData;
 
-export type SdOperatorHasData =
+export type OperatorHasData =
   | 'EQUAL'
   | 'NOT_EQUAL'
   | 'CONTAIN'
@@ -15,4 +15,4 @@ export type SdOperatorHasData =
   | 'LESS_OR_EQUAL'
   | 'BETWEEN';
 
-export type SdOperatorNoData = 'NULL' | 'NOT_NULL';
+export type OperatorNoData = 'NULL' | 'NOT_NULL';

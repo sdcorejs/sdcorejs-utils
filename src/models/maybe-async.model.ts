@@ -1,8 +1,8 @@
 import { firstValueFrom, from, Observable, of } from 'rxjs';
 
-export type SdMaybeAsync<T> = T | Promise<T> | Observable<T>;
+export type MaybeAsync<T> = T | Promise<T> | Observable<T>;
 
-export const SdResolveMaybeAsync = <T>(value: SdMaybeAsync<T>): Promise<T> => {
+export const resolveMaybeAsync = <T>(value: MaybeAsync<T>): Promise<T> => {
   if (value instanceof Promise) {
     return value;
   }
@@ -12,7 +12,7 @@ export const SdResolveMaybeAsync = <T>(value: SdMaybeAsync<T>): Promise<T> => {
   return Promise.resolve(value);
 };
 
-export const SdNormalizeAsync = <T>(value: SdMaybeAsync<T>): Observable<T> => {
+export const normalizeAsync = <T>(value: MaybeAsync<T>): Observable<T> => {
   if (isObservable(value)) {
     return value;
   }

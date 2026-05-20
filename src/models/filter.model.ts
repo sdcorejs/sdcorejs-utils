@@ -1,16 +1,16 @@
-import { SdNestedKeyOf } from './nested-key-of.model';
-import { SdOperatorHasData, SdOperatorNoData } from './operator.model';
+import { NestedKeyOf } from './nested-key-of.model';
+import { OperatorHasData, OperatorNoData } from './operator.model';
 
-export type SdFilter<T = any> = SdFilterHasData<T> | SdFilterBetween<T> | SdFilterNoData<T> | SdFilterAndOr<T>;
+export type Filter<T = any> = FilterHasData<T> | FilterBetween<T> | FilterNoData<T> | FilterAndOr<T>;
 
-export interface SdFilterHasData<T = any> {
-  field: SdNestedKeyOf<T>;
-  operator: Exclude<SdOperatorHasData, 'BETWEEN'>;
+export interface FilterHasData<T = any> {
+  field: NestedKeyOf<T>;
+  operator: Exclude<OperatorHasData, 'BETWEEN'>;
   data: any;
 }
 
-export interface SdFilterBetween<T = any> {
-  field: SdNestedKeyOf<T>;
+export interface FilterBetween<T = any> {
+  field: NestedKeyOf<T>;
   operator: 'BETWEEN';
   data: {
     from: string | number;
@@ -18,12 +18,12 @@ export interface SdFilterBetween<T = any> {
   };
 }
 
-export interface SdFilterNoData<T = any> {
-  field: SdNestedKeyOf<T>;
-  operator: SdOperatorNoData;
+export interface FilterNoData<T = any> {
+  field: NestedKeyOf<T>;
+  operator: OperatorNoData;
 }
 
-export interface SdFilterAndOr<T = any> {
+export interface FilterAndOr<T = any> {
   operator: 'AND' | 'OR';
-  data: SdFilter<T>[];
+  data: Filter<T>[];
 }

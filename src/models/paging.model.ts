@@ -1,19 +1,19 @@
-import { SdFilter } from './filter.model';
-import { SdNestedKeyOf } from './nested-key-of.model';
-import { SdOrder } from './order.model';
+import { Filter } from './filter.model';
+import { NestedKeyOf } from './nested-key-of.model';
+import { Order } from './order.model';
 
-export interface SdQueryReq<T = any> {
-  filters?: SdFilter<T>[];
-  fields?: SdNestedKeyOf<T>[];
+export interface QueryReq<T = any> {
+  filters?: Filter<T>[];
+  fields?: NestedKeyOf<T>[];
 }
 
-export interface SdPagingReq<T = any> extends SdQueryReq<T> {
+export interface PagingReq<T = any> extends QueryReq<T> {
   pageSize?: number;
   pageNumber?: number;
-  orders?: SdOrder<T>[];
+  orders?: Order<T>[];
 }
 
-export interface SdPagingRes<T = any> {
+export interface PagingRes<T = any> {
   items: T[];
   total: number;
 }

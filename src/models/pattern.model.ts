@@ -1,7 +1,7 @@
-export type SdPatternType = 'EMAIL' | 'PHONE' | 'PHONE_VN' | 'IDVN' | 'PASSPORT' | 'IDVN_OR_PASSPORT' | 'TIME';
+export type PatternType = 'EMAIL' | 'PHONE' | 'PHONE_VN' | 'IDVN' | 'PASSPORT' | 'IDVN_OR_PASSPORT' | 'TIME';
 
-export interface SdPatternCommon {
-  type: SdPatternType;
+export interface PatternCommon {
+  type: PatternType;
   name: string;
   regex: string;
   errorMessage: string;
