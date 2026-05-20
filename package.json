@@ -1,6 +1,6 @@
 {
   "name": "@sdcorejs/utils",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Pure TypeScript utility library — models, constants, functions",
   "license": "MIT",
   "homepage": "https://sdcorejs.github.io/sdcorejs-ultis",
