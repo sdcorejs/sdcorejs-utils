@@ -1,0 +1,14 @@
+{
+  "name": "@sdcorejs/utils-docs",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2",
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "@sdcorejs/utils":            ["../src/index.ts"],
+      "@sdcorejs/utils/models":     ["../src/models/index.ts"],
+      "@sdcorejs/utils/constants":  ["../src/constants/index.ts"],
+      "@sdcorejs/utils/fns":        ["../src/fns/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

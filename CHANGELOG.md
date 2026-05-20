@@ -7,15 +7,37 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.2] — 2026-05-20
+
+### Changed (breaking — rename)
+
+- `models`: `PatternType` → `ValidationPatternType`, `PatternCommon` → `ValidationPattern`
+- `models`: `ValidationPattern.regex` field renamed to `pattern` (aligns with Angular `Validators.pattern()`)
+- `models`: `ValidationPatternType` members renamed — `PHONE_VN` → `VN_PHONE`, `IDVN` → `VN_ID`, `IDVN_OR_PASSPORT` → `VN_ID_OR_PASSPORT`
+- `fns`: `StringUtilities.REGEX_PHONE_VN` → `REGEX_VN_PHONE`, `REGEX_IDVN` → `REGEX_VN_ID`, `REGEX_IDVN_OR_PASSPORT` → `REGEX_VN_ID_OR_PASSPORT`
+- `constants`: `PATTERN_COMMONS` → `VALIDATION_PATTERNS`
+
+### Added
+
+- `models`: 15 new `ValidationPatternType` members — `URL`, `DOMAIN`, `IPV4`, `IPV6`, `IMAGE_URL`, `SLUG`, `NUMBER`, `INTEGER`, `DECIMAL`, `POSITIVE_NUMBER`, `UUID`, `CODE_16`, `CODE_32`, `HEX_COLOR`, `BASE64`
+- `fns`: 15 new `StringUtilities` regex constants — `REGEX_URL`, `REGEX_DOMAIN`, `REGEX_IPV4`, `REGEX_IPV6`, `REGEX_IMAGE_URL`, `REGEX_SLUG`, `REGEX_NUMBER`, `REGEX_INTEGER`, `REGEX_DECIMAL`, `REGEX_POSITIVE_NUMBER`, `REGEX_UUID`, `REGEX_CODE_16`, `REGEX_CODE_32`, `REGEX_HEX_COLOR`, `REGEX_BASE64`
+- `constants`: `VALIDATION_PATTERNS` now covers all 22 pattern types
+- Tests: 78 new tests for renamed and new regex patterns (total 468)
+
+---
+
 ## [1.0.1] — 2026-05-20
 
 ### Changed
 
 - `fns`: extracted `ColorUtilities` (`hslToHex`, `rgbToHex`) and `BrowserUtilities` from the old `Utilities` namespace
 - `BrowserUtilities` uses `detectIncognito` (full cross-browser detection returning `{ isPrivate, browserName }`) instead of the simpler `isIncognito`
-- `Utilities` now contains only general-purpose helpers: `allWithPaging`, `randomId`, `hash`, `parseQueryParams`, `generateUuid`, `getNestedValue`
+- `Utilities.allWithPaging` renamed to `fetchAllByPaging`
+- `Utilities` now contains only general-purpose helpers: `fetchAllByPaging`, `randomId`, `hash`, `parseQueryParams`, `generateUuid`, `getNestedValue`
 - Removed `Utilities.changeAliasLowerCase` (duplicate of `StringUtilities.changeAliasLowerCase`)
 - Removed `Utilities.isIncognito` (replaced by `BrowserUtilities.detectIncognito`)
+- Added `MaterialSymbolFontSet` type and `DEFAULT_MATERIAL_SYMBOL_FONT_SET` constant
+- Added `SD_LANGUAGE_STORAGE_KEY` and `IPIFY_API_URL` constants (previously hardcoded strings)
 
 ---
 
@@ -39,7 +61,8 @@ Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (
 - `OPERATORS` — lookup table for all 14 filter operators
 - `PATTERN_COMMONS` — built-in validator definitions (email, phone, CCCD, passport, time)
 - `SUPPORTED_LANGUAGES` — `['vi', 'en', 'ja', 'ko', 'zh']`
-- `DefaultMaterialIconFontSet` — `'material-icons-outlined'`
+- `DEFAULT_MATERIAL_ICON_FONT_SET` — `'material-icons-outlined'`
+- `DEFAULT_MATERIAL_SYMBOL_FONT_SET` — `'material-symbols-outlined'`
 
 **`@sdcorejs/utils/fns`**
 - `StringUtilities` — regex constants, validators, Vietnamese diacritic normalization, template interpolation, encrypt/decrypt, `sha256`

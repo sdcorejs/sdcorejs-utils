@@ -1,7 +1,8 @@
+import { SD_LANGUAGE_STORAGE_KEY } from '../constants/common.constants';
 import { detectIncognito } from './detect-incognito.fns';
 
 // Hardcoded i18n cho upload — pure function nên không inject() được I18nService.
-// Đọc lang trực tiếp từ localStorage (cùng key với I18nService: 'sd-core.language').
+// Đọc lang trực tiếp từ localStorage (cùng key với I18nService: SD_LANGUAGE_STORAGE_KEY).
 // Khi I18nService chuyển sang reload-on-change model, lang ở đây luôn đồng bộ với UI.
 const UPLOAD_MESSAGES = {
   vi: {
@@ -31,12 +32,29 @@ type UploadLang = keyof typeof UPLOAD_MESSAGES;
 
 const getUploadLang = (): UploadLang => {
   try {
-    const stored = localStorage.getItem('sd-core.language');
+    const stored = localStorage.getItem(SD_LANGUAGE_STORAGE_KEY);
     if (stored && stored in UPLOAD_MESSAGES) return stored as UploadLang;
   } catch { /* ignore */ }
   return 'vi';
 };
 
+/**
+ * Opens the native file picker and resolves with the selected file(s) after validation.
+ *
+ * @param option.extensions - Allowed file extensions, e.g. `['pdf', 'docx']`. Case-insensitive.
+ * @param option.maxSizeInMb - Maximum file size in megabytes.
+ * @param option.validator - Custom validator: receives the file name and returns an error message string if invalid.
+ * @param option.multiple - Allow selecting multiple files (returns `File[]`).
+ * @returns A Promise resolving to `File`, `File[]`, or `null` if no file was selected.
+ * @throws `Error` with a localized message if extension or size validation fails.
+ *
+ * @example
+ * // Single file, PDF only, max 5 MB
+ * const file = await BrowserUtilities.upload({ extensions: ['pdf'], maxSizeInMb: 5 });
+ *
+ * // Multiple images
+ * const files = await BrowserUtilities.upload({ extensions: ['jpg', 'png', 'webp'], multiple: true });
+ */
 const upload = (option?: { extensions?: string[]; maxSizeInMb?: number; validator?: (fileName: string) => string; multiple?: boolean }) => {
   const uploadId = 'U1e09c1c0-b647-437e-995e-d7a1a1b60550';
   const promise = new Promise<File | File[] | null>((resolve, reject) => {
@@ -134,6 +152,20 @@ const generateFileName = (fileName?: string | null) => {
   return fileName;
 };
 
+/**
+ * Triggers a browser download for a `File` object or a URL string.
+ * - URLs starting with `http` are opened in a new tab.
+ * - All other strings (blob URLs, data URIs, relative paths) trigger a file download.
+ *
+ * @param fileOrPath - `File` object or URL/path string.
+ * @param fileName - Override for the downloaded file name.
+ *
+ * @example
+ * BrowserUtilities.download(file);                        // use file.name
+ * BrowserUtilities.download(file, 'export.pdf');          // override name
+ * BrowserUtilities.download('https://example.com/report'); // opens in new tab
+ * BrowserUtilities.download('/api/export?format=csv', 'data.csv');
+ */
 const download = (fileOrPath: File | string | undefined | null, fileName?: string | null) => {
   if (!fileOrPath) {
     console.warn('No file or path provided for download');
@@ -164,6 +196,16 @@ const download = (fileOrPath: File | string | undefined | null, fileName?: strin
   a.remove();
 };
 
+/**
+ * Triggers a browser download for a `Blob` object.
+ *
+ * @param blob - The Blob to download.
+ * @param fileName - File name for the download; auto-generated if omitted.
+ *
+ * @example
+ * const blob = new Blob(['hello, world'], { type: 'text/plain' });
+ * BrowserUtilities.downloadBlob(blob, 'greeting.txt');
+ */
 const downloadBlob = (blob: Blob, fileName?: string) => {
   try {
     const url = window.URL.createObjectURL(blob);
@@ -182,34 +224,57 @@ const downloadBlob = (blob: Blob, fileName?: string) => {
   }
 };
 
+/**
+ * Writes text to the clipboard using the Clipboard API.
+ *
+ * @param text - The string to copy.
+ *
+ * @example
+ * BrowserUtilities.copyToClipboard('https://example.com/share-link');
+ */
 const copyToClipboard = (text: string) => {
   navigator.clipboard.writeText(text);
 };
 
+/**
+ * Returns `true` if the current device is likely a mobile device
+ * based on the user agent string.
+ *
+ * @example
+ * if (BrowserUtilities.isMobile()) {
+ *   // render compact layout
+ * }
+ */
 const isMobile = (): boolean => {
   return /Mobi|Android/i.test(navigator.userAgent);
 };
 
-const getClientPublicIp = async (): Promise<string | null> => {
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data.ip;
-  } catch (error) {
-    console.error('Failed to fetch client IP:', error);
-    return null;
-  }
-};
 
+/**
+ * Browser-specific utilities: file upload/download, clipboard, device detection,
+ * and cross-browser private-mode detection.
+ *
+ * @example
+ * import { BrowserUtilities } from '@sdcorejs/utils/fns';
+ *
+ * const file = await BrowserUtilities.upload({ extensions: ['pdf'] });
+ * const { isPrivate } = await BrowserUtilities.detectIncognito();
+ */
 export const BrowserUtilities = {
   upload,
   download,
   downloadBlob,
   copyToClipboard,
   isMobile,
-  getClientPublicIp,
+  /**
+   * Detects whether the browser is running in private/incognito mode.
+   * Works across Chrome, Edge, Firefox, Safari, and IE.
+   *
+   * @returns `Promise<{ isPrivate: boolean, browserName: string }>`
+   *
+   * @example
+   * const { isPrivate, browserName } = await BrowserUtilities.detectIncognito();
+   * if (isPrivate) console.log(`${browserName} is in private mode`);
+   */
   detectIncognito,
 };

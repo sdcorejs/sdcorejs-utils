@@ -45,8 +45,8 @@ import { ... } from '@sdcorejs/utils/fns'        // utility objects & functions
 | `Operator` | Union of all operator string literals |
 | `OperatorHasData` | Operators that require a data value |
 | `OperatorNoData` | `'NULL' \| 'NOT_NULL'` |
-| `PatternType` | Validator pattern keys (`'EMAIL'`, `'PHONE'`, …) |
-| `PatternCommon` | Pattern descriptor — `{ type, name, regex, errorMessage }` |
+| `ValidationPatternType` | Validator pattern keys (`'EMAIL'`, `'VN_PHONE'`, `'UUID'`, …) |
+| `ValidationPattern` | Pattern descriptor — `{ type, name, pattern, errorMessage }` |
 | `MaybeAsync<T>` | `T \| Promise<T> \| Observable<T>` |
 
 ### Primitive types
@@ -56,7 +56,8 @@ import { ... } from '@sdcorejs/utils/fns'        // utility objects & functions
 | `Size` | `'sm' \| 'md' \| 'lg'` |
 | `Color` | `'primary' \| 'secondary' \| 'info' \| 'success' \| 'warning' \| 'error'` |
 | `Language` | `'vi' \| 'en' \| 'ja' \| 'ko' \| 'zh'` |
-| `MaterialIconFontSet` | Material icon font set string literals |
+| `MaterialIconFontSet` | Legacy Material Icons font set identifiers |
+| `MaterialSymbolFontSet` | Material Symbols (variable font) font set identifiers |
 
 ### Async helpers (requires `rxjs`)
 
@@ -73,9 +74,10 @@ import { ... } from '@sdcorejs/utils/fns'        // utility objects & functions
 |---|---|
 | `EMPTY_STR` | `'--'` — default display for empty values |
 | `OPERATORS` | Array of `{ value, symbol, display }` for all 14 operators |
-| `PATTERN_COMMONS` | Array of `PatternCommon` for built-in validators |
+| `VALIDATION_PATTERNS` | Array of `ValidationPattern` for all 22 built-in validators |
 | `SUPPORTED_LANGUAGES` | `readonly ['vi', 'en', 'ja', 'ko', 'zh']` |
-| `DefaultMaterialIconFontSet` | `'material-icons-outlined'` |
+| `DEFAULT_MATERIAL_ICON_FONT_SET` | `'material-icons-outlined'` |
+| `DEFAULT_MATERIAL_SYMBOL_FONT_SET` | `'material-symbols-outlined'` |
 
 ---
 
@@ -87,9 +89,37 @@ import { ... } from '@sdcorejs/utils/fns'        // utility objects & functions
 import { StringUtilities } from '@sdcorejs/utils/fns';
 ```
 
+**Regex pattern strings** — pass directly to `Validators.pattern()` or `new RegExp()`:
+
+| Constant | Matches |
+|---|---|
+| `REGEX_EMAIL` | Standard email address |
+| `REGEX_PHONE` | Generic international phone |
+| `REGEX_VN_PHONE` | Vietnamese mobile phone number |
+| `REGEX_VN_ID` | Vietnamese national ID (CCCD/CMND, 12 digits) |
+| `REGEX_PASSPORT` | International passport (letter + 7 digits) |
+| `REGEX_VN_ID_OR_PASSPORT` | Either VN_ID or PASSPORT |
+| `REGEX_TIME` | `HH:mm` time string |
+| `REGEX_URL` | HTTP/HTTPS URL |
+| `REGEX_DOMAIN` | Bare domain name |
+| `REGEX_IPV4` | IPv4 address |
+| `REGEX_IPV6` | IPv6 address |
+| `REGEX_IMAGE_URL` | HTTP/HTTPS URL ending with image extension |
+| `REGEX_SLUG` | URL-friendly slug (lowercase, digits, hyphens) |
+| `REGEX_NUMBER` | Integer or decimal, optionally negative |
+| `REGEX_INTEGER` | Whole number, optionally negative |
+| `REGEX_DECIMAL` | Number with mandatory decimal point |
+| `REGEX_POSITIVE_NUMBER` | Non-negative integer or decimal |
+| `REGEX_UUID` | UUID (lowercase hex, hyphen-separated) |
+| `REGEX_CODE_16` | 16-character alphanumeric code |
+| `REGEX_CODE_32` | 32-character alphanumeric code |
+| `REGEX_HEX_COLOR` | CSS hex color (`#RGB` or `#RRGGBB`) |
+| `REGEX_BASE64` | Base64-encoded string |
+
+**Functions:**
+
 | Member | Description |
 |---|---|
-| `REGEX_EMAIL`, `REGEX_PHONE`, `REGEX_PHONE_VN`, `REGEX_IDVN`, `REGEX_PASSPORT`, `REGEX_IDVN_OR_PASSPORT`, `REGEX_TIME` | Regex pattern strings |
 | `isValidEmail(v)` | Email format check |
 | `isValidPhone(v)` | Phone format check |
 | `isValidCode(v)` | Alphanumeric code (2–20 chars) |
@@ -176,7 +206,6 @@ import { BrowserUtilities } from '@sdcorejs/utils/fns';
 | `downloadBlob(blob, fileName?)` | Download a `Blob` |
 | `copyToClipboard(text)` | Write to clipboard |
 | `isMobile()` | Detect mobile user agent |
-| `getClientPublicIp()` | Fetch public IP via ipify |
 | `detectIncognito()` | Cross-browser private-mode detection — returns `Promise<{ isPrivate, browserName }>` |
 
 ### `Utilities`
@@ -187,18 +216,12 @@ import { Utilities } from '@sdcorejs/utils/fns';
 
 | Member | Description |
 |---|---|
-| `allWithPaging(fn, pageSize?)` | Exhaust paginated API, collect all items |
+| `fetchAllByPaging(fn, pageSize?)` | Exhaust paginated API, collect all items |
 | `randomId(prefix?)` | Time+random base-36 ID |
 | `hash(obj)` | Stable djb2 hash of any value |
 | `parseQueryParams(qs?)` | Query string → `Record<string, string>` |
 | `generateUuid()` | `crypto.randomUUID()` with fallback |
 | `getNestedValue(obj, path)` | Dot-path accessor |
-
-### Standalone export
-
-| Export | Description |
-|---|---|
-| `detectIncognito()` | Same as `BrowserUtilities.detectIncognito` — available for direct import |
 
 ---
 
