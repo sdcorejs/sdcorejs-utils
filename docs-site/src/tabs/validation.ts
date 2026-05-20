@@ -35,6 +35,7 @@ export function renderValidation(el: HTMLElement): void {
   const valueLabel = document.createElement('label');
   valueLabel.style.cssText = 'font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px';
   valueLabel.textContent = 'Value';
+  valueLabel.htmlFor = 'val-input';
   const valueInput = document.createElement('input');
   valueInput.type = 'text';
   valueInput.id = 'val-input';
@@ -49,6 +50,7 @@ export function renderValidation(el: HTMLElement): void {
   const patternLabel = document.createElement('label');
   patternLabel.style.cssText = 'font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px';
   patternLabel.textContent = 'Pattern';
+  patternLabel.htmlFor = 'val-type';
   const select = document.createElement('select');
   select.id = 'val-type';
   for (const group of GROUPS) {
@@ -137,11 +139,11 @@ export function renderValidation(el: HTMLElement): void {
     snippet.className = 'code-block';
     snippet.style.fontSize = '11px';
     snippet.style.marginTop = '16px';
-    snippet.textContent = `ValidationUtilities.validate('${type}', '${value}')\n// → ${valid}`;
+    snippet.textContent = `ValidationUtilities.validate('${type}', ${JSON.stringify(value)})\n// → ${valid}`;
     resultEl.appendChild(snippet);
   };
 
-  let timer: ReturnType<typeof setTimeout>;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   valueInput.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 300); });
   valueInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(timer); run(); } });
   btn.addEventListener('click', run);
