@@ -7,6 +7,17 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.3] — 2026-05-20
+
+### Changed
+
+- Repository renamed from `sdcorejs-ultis` to `sdcorejs-utils`
+- Updated `homepage`, `repository.url`, `bugs.url` in `package.json`
+- Updated GitHub Pages base URL to `/sdcorejs-utils/`
+- Updated all internal links to reflect new repo name
+
+---
+
 ## [1.0.2] — 2026-05-20
 
 ### Changed (breaking — rename)

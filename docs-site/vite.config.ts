@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 
 export default defineConfig({
-  base: '/sdcorejs-ultis/',
+  base: '/sdcorejs-utils/',
   resolve: {
     alias: [
       { find: '@sdcorejs/utils/models',    replacement: resolve(__dirname, '../src/models/index.ts') },
