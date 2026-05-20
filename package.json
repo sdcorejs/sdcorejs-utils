@@ -4,31 +4,31 @@
   "description": "Pure TypeScript utility library — models, constants, functions",
   "license": "MIT",
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     },
     "./models": {
       "types": "./dist/models.d.ts",
-      "import": "./dist/models.mjs",
-      "require": "./dist/models.js"
+      "import": "./dist/models.js",
+      "require": "./dist/models.cjs"
     },
     "./constants": {
       "types": "./dist/constants.d.ts",
-      "import": "./dist/constants.mjs",
-      "require": "./dist/constants.js"
+      "import": "./dist/constants.js",
+      "require": "./dist/constants.cjs"
     },
     "./fns": {
       "types": "./dist/fns.d.ts",
-      "import": "./dist/fns.mjs",
-      "require": "./dist/fns.js"
+      "import": "./dist/fns.js",
+      "require": "./dist/fns.cjs"
     }
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist"
   ],
