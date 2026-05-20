@@ -3,26 +3,28 @@
 
 const REGEX_EMAIL = '^(([^<>()[\\].,;:\\s@"]+(\\.[^<>()[\\].,;:\\s@"]+)*)|(".+"))@(([^<>()[\\].,;:\\s@"]+\\.)+[^<>()[\\].,;:\\s@"]{2,})$';
 const REGEX_PHONE = '^[+]*[(]{0,1}[+]?[0-9]{1,4}[)]{0,1}[-\\s./0-9]*$';
-const REGEX_PHONE_VN = '^(?:\\+84|0|84)(3[2-9]|5[2689]|7[06-9]|8[1-689]|9[0-9])\\d{7}$';
-const REGEX_IDVN = '^\\d{12}$';
+const REGEX_VN_PHONE = '^(?:\\+84|0|84)(3[2-9]|5[2689]|7[06-9]|8[1-689]|9[0-9])\\d{7}$';
+const REGEX_VN_ID = '^\\d{12}$';
 const REGEX_PASSPORT = '^[A-Z]\\d{7}$';
-const REGEX_IDVN_OR_PASSPORT = '^(\\d{12}|[A-Z]\\d{7})$';
+const REGEX_VN_ID_OR_PASSPORT = '^(\\d{12}|[A-Z]\\d{7})$';
 const REGEX_TIME = '^(?:[01]\\d|2[0-3]):[0-5]\\d$';
 
-const isValidEmail = (value: any) => {
-  if (!value) return false;
-  return new RegExp(REGEX_EMAIL).test(value);
-};
+const REGEX_URL = '^https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b[-a-zA-Z0-9()@:%_+.~#?&/=]*$';
+const REGEX_DOMAIN = '^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}$';
+const REGEX_IPV4 = '^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$';
+const REGEX_IPV6 = '^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}|[0-9a-fA-F]{1,4}::([0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4})$';
+const REGEX_IMAGE_URL = '^https?:\\/\\/.+\\.(jpg|jpeg|png|gif|webp|svg|bmp)(\\?.*)?$';
+const REGEX_SLUG = '^[a-z0-9]+(?:-[a-z0-9]+)*$';
+const REGEX_NUMBER = '^-?\\d+(\\.\\d+)?$';
+const REGEX_INTEGER = '^-?\\d+$';
+const REGEX_DECIMAL = '^-?\\d+\\.\\d+$';
+const REGEX_POSITIVE_NUMBER = '^\\d+(\\.\\d+)?$';
+const REGEX_UUID = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+const REGEX_CODE_16 = '^[A-Za-z0-9]{16}$';
+const REGEX_CODE_32 = '^[A-Za-z0-9]{32}$';
+const REGEX_HEX_COLOR = '^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$';
+const REGEX_BASE64 = '^[A-Za-z0-9+/]+=*$';
 
-const isValidPhone = (value: any) => {
-  if (!value) return false;
-  return new RegExp(REGEX_PHONE).test(value);
-};
-
-const isValidCode = (value: any) => {
-  if (!value) return false;
-  return /^[a-zA-Z0-9\@\_\-]{2,20}$/.test(value);
-};
 
 const isNullOrEmpty = (value: any) => value === undefined || value === null || value === '';
 
@@ -139,8 +141,10 @@ const sha256 = async (input: string): Promise<string> => {
 };
 
 export const StringUtilities = {
-  REGEX_EMAIL, REGEX_PHONE, REGEX_PHONE_VN, REGEX_IDVN, REGEX_PASSPORT, REGEX_IDVN_OR_PASSPORT, REGEX_TIME,
-  isValidEmail, isValidPhone, isValidCode,
+  REGEX_EMAIL, REGEX_PHONE, REGEX_VN_PHONE, REGEX_VN_ID, REGEX_PASSPORT, REGEX_VN_ID_OR_PASSPORT, REGEX_TIME,
+  REGEX_URL, REGEX_DOMAIN, REGEX_IPV4, REGEX_IPV6, REGEX_IMAGE_URL, REGEX_SLUG,
+  REGEX_NUMBER, REGEX_INTEGER, REGEX_DECIMAL, REGEX_POSITIVE_NUMBER,
+  REGEX_UUID, REGEX_CODE_16, REGEX_CODE_32, REGEX_HEX_COLOR, REGEX_BASE64,
   changeAliasLowerCase, aliasIncludes,
   format, templateToDisplay, parseExpression,
   encrypt, decrypt,

@@ -3,6 +3,14 @@
   "version": "1.0.1",
   "description": "Pure TypeScript utility library — models, constants, functions",
   "license": "MIT",
+  "homepage": "https://sdcorejs.github.io/sdcorejs-ultis",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sdcorejs/sdcorejs-ultis.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sdcorejs/sdcorejs-ultis/issues"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -49,6 +57,8 @@
     }
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "jsdom": "^29.1.1",
     "rxjs": "^7.8.2",
     "tsup": "^8.0.0",
     "typescript": "~5.7.2",
