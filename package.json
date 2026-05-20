@@ -6,24 +6,24 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./models": {
+      "types": "./dist/models.d.ts",
       "import": "./dist/models.mjs",
-      "require": "./dist/models.js",
-      "types": "./dist/models.d.ts"
+      "require": "./dist/models.js"
     },
     "./constants": {
+      "types": "./dist/constants.d.ts",
       "import": "./dist/constants.mjs",
-      "require": "./dist/constants.js",
-      "types": "./dist/constants.d.ts"
+      "require": "./dist/constants.js"
     },
     "./fns": {
+      "types": "./dist/fns.d.ts",
       "import": "./dist/fns.mjs",
-      "require": "./dist/fns.js",
-      "types": "./dist/fns.d.ts"
+      "require": "./dist/fns.js"
     }
   },
   "main": "./dist/index.js",

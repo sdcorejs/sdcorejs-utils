@@ -6,3 +6,4 @@ tsup.config.ts
 docs/
 .github/
 vitest.config.ts
+package-lock.json
