@@ -29,7 +29,7 @@ function mount(): void {
   header.innerHTML = `
     <div class="header-inner">
       <span class="header-logo">@sdcorejs/utils</span>
-      <a class="header-link" href="https://github.com/sdcorejs/sdcorejs-ultis" target="_blank" rel="noreferrer">GitHub ↗</a>
+      <a class="header-link" href="https://github.com/sdcorejs/sdcorejs-utils" target="_blank" rel="noreferrer">GitHub ↗</a>
     </div>
   `;
   app.appendChild(header);

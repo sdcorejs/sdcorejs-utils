@@ -41,7 +41,7 @@
   ·
   <a href="https://github.com/sdcorejs/sdcorejs-utils">GitHub</a>
   ·
-  <a href="https://sdcorejs.github.io/sdcorejs-ultis/">Live Demo</a>
+  <a href="https://sdcorejs.github.io/sdcorejs-utils/">Live Demo</a>
 </p>
 
 ---

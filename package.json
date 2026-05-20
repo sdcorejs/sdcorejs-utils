@@ -1,15 +1,15 @@
 {
   "name": "@sdcorejs/utils",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Pure TypeScript utility library — models, constants, functions",
   "license": "MIT",
-  "homepage": "https://sdcorejs.github.io/sdcorejs-ultis",
+  "homepage": "https://sdcorejs.github.io/sdcorejs-utils",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sdcorejs/sdcorejs-ultis.git"
+    "url": "https://github.com/sdcorejs/sdcorejs-utils.git"
   },
   "bugs": {
-    "url": "https://github.com/sdcorejs/sdcorejs-ultis/issues"
+    "url": "https://github.com/sdcorejs/sdcorejs-utils/issues"
   },
   "type": "module",
   "main": "./dist/index.cjs",
