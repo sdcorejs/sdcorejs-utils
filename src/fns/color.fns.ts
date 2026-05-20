@@ -1,4 +1,4 @@
-export function hslToHex(h: number, s: number, l: number): string {
+function hslToHex(h: number, s: number, l: number): string {
   const hN = h / 360, sN = s / 100, lN = l / 100;
   let r: number, g: number, b: number;
   if (sN === 0) {
@@ -22,7 +22,9 @@ export function hslToHex(h: number, s: number, l: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-export function rgbToHex(r: number, g: number, b: number): string {
+function rgbToHex(r: number, g: number, b: number): string {
   const toHex = (x: number) => { const h = Math.round(Math.max(0, Math.min(255, x))).toString(16); return h.length === 1 ? '0' + h : h; };
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
+
+export const ColorUtilities = { hslToHex, rgbToHex };

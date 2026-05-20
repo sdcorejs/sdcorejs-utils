@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.1] — 2026-05-20
+
+### Changed
+
+- `fns`: extracted `ColorUtilities` (`hslToHex`, `rgbToHex`) and `BrowserUtilities` from the old `Utilities` namespace
+- `BrowserUtilities` uses `detectIncognito` (full cross-browser detection returning `{ isPrivate, browserName }`) instead of the simpler `isIncognito`
+- `Utilities` now contains only general-purpose helpers: `allWithPaging`, `randomId`, `hash`, `parseQueryParams`, `generateUuid`, `getNestedValue`
+- Removed `Utilities.changeAliasLowerCase` (duplicate of `StringUtilities.changeAliasLowerCase`)
+- Removed `Utilities.isIncognito` (replaced by `BrowserUtilities.detectIncognito`)
+
+---
+
 ## [1.0.0] — 2026-05-20
 
 Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (`projects/sd-angular/utilities/` and `projects/sd-angular/models/`).

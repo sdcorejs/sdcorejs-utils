@@ -152,6 +152,33 @@ import { DateUtilities } from '@sdcorejs/utils/fns';
 | `begin(d)` / `end(d)` | Start/end of day |
 | `timeDifference(prev, now?)` | Human-readable elapsed time |
 
+### `ColorUtilities`
+
+```ts
+import { ColorUtilities } from '@sdcorejs/utils/fns';
+```
+
+| Member | Description |
+|---|---|
+| `hslToHex(h, s, l)` | HSL → hex colour string |
+| `rgbToHex(r, g, b)` | RGB → hex colour string |
+
+### `BrowserUtilities`
+
+```ts
+import { BrowserUtilities } from '@sdcorejs/utils/fns';
+```
+
+| Member | Description |
+|---|---|
+| `upload(option?)` | Opens file picker, validates extension/size, returns `File \| File[]` |
+| `download(fileOrPath, fileName?)` | Download `File` or URL |
+| `downloadBlob(blob, fileName?)` | Download a `Blob` |
+| `copyToClipboard(text)` | Write to clipboard |
+| `isMobile()` | Detect mobile user agent |
+| `getClientPublicIp()` | Fetch public IP via ipify |
+| `detectIncognito()` | Cross-browser private-mode detection — returns `Promise<{ isPrivate, browserName }>` |
+
 ### `Utilities`
 
 ```ts
@@ -160,28 +187,18 @@ import { Utilities } from '@sdcorejs/utils/fns';
 
 | Member | Description |
 |---|---|
-| `upload(option?)` | Opens file picker, validates extension/size, returns `File \| File[]` |
-| `download(fileOrPath, fileName?)` | Download `File` or URL |
-| `downloadBlob(blob, fileName?)` | Download a `Blob` |
-| `changeAliasLowerCase(s)` | Vietnamese diacritics → lowercase ASCII |
-| `copyToClipboard(text)` | Write to clipboard |
 | `allWithPaging(fn, pageSize?)` | Exhaust paginated API, collect all items |
-| `isIncognito()` | Detect private browsing mode |
-| `isMobile()` | Detect mobile user agent |
 | `randomId(prefix?)` | Time+random base-36 ID |
 | `hash(obj)` | Stable djb2 hash of any value |
 | `parseQueryParams(qs?)` | Query string → `Record<string, string>` |
-| `getClientPublicIp()` | Fetch public IP via ipify |
 | `generateUuid()` | `crypto.randomUUID()` with fallback |
 | `getNestedValue(obj, path)` | Dot-path accessor |
 
-### Standalone functions
+### Standalone export
 
 | Export | Description |
 |---|---|
-| `hslToHex(h, s, l)` | HSL → hex colour string |
-| `rgbToHex(r, g, b)` | RGB → hex colour string |
-| `detectIncognito()` | Cross-browser private-mode detection (Promise) |
+| `detectIncognito()` | Same as `BrowserUtilities.detectIncognito` — available for direct import |
 
 ---
 
