@@ -1,0 +1,53 @@
+{
+  "name": "@sdcorejs/utils",
+  "version": "1.0.0",
+  "description": "Pure TypeScript utility library — models, constants, functions",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./models": {
+      "import": "./dist/models.mjs",
+      "require": "./dist/models.js",
+      "types": "./dist/models.d.ts"
+    },
+    "./constants": {
+      "import": "./dist/constants.mjs",
+      "require": "./dist/constants.js",
+      "types": "./dist/constants.d.ts"
+    },
+    "./fns": {
+      "import": "./dist/fns.mjs",
+      "require": "./dist/fns.js",
+      "types": "./dist/fns.d.ts"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "rxjs": ">=7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "rxjs": { "optional": true }
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "~5.7.2",
+    "vitest": "^2.0.0"
+  },
+  "engines": { "node": ">=20" }
+}
