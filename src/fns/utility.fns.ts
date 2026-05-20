@@ -1,7 +1,7 @@
 // Hardcoded i18n cho upload utility — pure function nên không inject() được I18nService.
 // Đọc lang trực tiếp từ localStorage (cùng key với I18nService: 'sd-core.language').
 // Khi I18nService chuyển sang reload-on-change model, lang ở đây luôn đồng bộ với UI.
-const SD_UPLOAD_MESSAGES = {
+const UPLOAD_MESSAGES = {
   vi: {
     'invalid-format': '[{name}] File tải lên không đúng định dạng. Vui lòng chọn lại',
     'invalid-size': '[{name}] Kích thước file không hợp lệ. Vui lòng chọn một file khác',
@@ -24,13 +24,13 @@ const SD_UPLOAD_MESSAGES = {
   },
 } as const;
 
-type SdUploadMsgKey = keyof typeof SD_UPLOAD_MESSAGES.vi;
-type SdUploadLang = keyof typeof SD_UPLOAD_MESSAGES;
+type UploadMsgKey = keyof typeof UPLOAD_MESSAGES.vi;
+type UploadLang = keyof typeof UPLOAD_MESSAGES;
 
-const getSdUploadLang = (): SdUploadLang => {
+const getUploadLang = (): UploadLang => {
   try {
     const stored = localStorage.getItem('sd-core.language');
-    if (stored && stored in SD_UPLOAD_MESSAGES) return stored as SdUploadLang;
+    if (stored && stored in UPLOAD_MESSAGES) return stored as UploadLang;
   } catch { /* ignore */ }
   return 'vi';
 };
@@ -60,12 +60,9 @@ const upload = (option?: { extensions?: string[]; maxSizeInMb?: number; validato
       try {
         const target = evt.target as DataTransfer;
 
-        // Hardcode i18n cho upload utility — pure function nên không inject() được I18nService.
-        // Đọc lang trực tiếp từ localStorage (cùng key với I18nService: 'sd-core.language').
-        // Throw plain Error(translatedText) để consumer không cần xử lý đặc biệt.
-        const throwUploadError = (msgKey: SdUploadMsgKey, name: string): never => {
-          const lang = getSdUploadLang();
-          const template = SD_UPLOAD_MESSAGES[lang][msgKey] ?? SD_UPLOAD_MESSAGES.vi[msgKey];
+        const throwUploadError = (msgKey: UploadMsgKey, name: string): never => {
+          const lang = getUploadLang();
+          const template = UPLOAD_MESSAGES[lang][msgKey] ?? UPLOAD_MESSAGES.vi[msgKey];
           throw new Error(template.replace('{name}', name));
         };
 
@@ -141,7 +138,6 @@ const download = (fileOrPath: File | string | undefined | null, fileName?: strin
   }
   fileName = generateFileName(fileName);
   if (fileOrPath instanceof File) {
-    // Hoặc sử dụng cách thông thường:
     const url = URL.createObjectURL(fileOrPath);
     const a = document.createElement('a');
     a.href = url;
@@ -149,13 +145,13 @@ const download = (fileOrPath: File | string | undefined | null, fileName?: strin
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url); // Giải phóng tài nguyên
+    URL.revokeObjectURL(url);
     return;
   }
   const a = document.createElement('a');
   a.href = fileOrPath;
   if (fileOrPath.startsWith('http')) {
-    a.target = '_blank'; // mở tab mới
+    a.target = '_blank';
   } else {
     a.download = fileName;
   }
@@ -171,7 +167,6 @@ const downloadBlob = (blob: Blob, fileName?: string) => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     if (link.download !== undefined) {
-      // feature detection
       link.download = generateFileName(fileName);
       link.href = url;
       link.style.visibility = 'hidden';
@@ -275,9 +270,6 @@ const hash = (obj: any): string => {
   return `h${Math.abs(hash)}`;
 };
 
-/**
- * Convert object to stable JSON string (keys sorted)
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stableStringify = (obj: any): string => {
   if (obj === null || typeof obj !== 'object') {
@@ -305,8 +297,6 @@ const stableStringify = (obj: any): string => {
   return `{${keyValuePairs.join(',')}}`;
 };
 
-// Hàm `parseQueryParams` dùng để phân tích chuỗi query string (phần sau dấu `?` trên URL)
-//   và chuyển đổi nó thành một đối tượng JavaScript với các cặp key-value.
 const parseQueryParams = (queryString?: string): Record<string, string> => {
   const params = new URLSearchParams(queryString || '');
   const result: Record<string, string> = {};
@@ -316,27 +306,20 @@ const parseQueryParams = (queryString?: string): Record<string, string> => {
   return result;
 };
 
-/**
- * Lấy địa chỉ IP public của client bằng cách gọi API bên thứ ba.
- */
 const getClientPublicIp = async (): Promise<string | null> => {
   try {
-    // Gọi đến API của ipify để lấy IP dưới dạng JSON
     const response = await fetch('https://api.ipify.org?format=json');
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    // Trả về địa chỉ IP
     return data.ip;
   } catch (error) {
     console.error('Failed to fetch client IP:', error);
-    return null; // Trả về null nếu có lỗi
+    return null;
   }
 };
 
-
-// Helper function với fallback
 const generateUuid = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -345,17 +328,13 @@ const generateUuid = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-/**
- * Truy xuất giá trị của object dựa trên đường dẫn nested (VD: 'user.address.city')
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getNestedValue = (obj: any, path: string) => {
   if (!obj || !path) return undefined;
-  // Tách chuỗi theo dấu chấm và duyệt qua từng cấp của object
   return path.split('.').reduce((acc, part) => acc?.[part], obj);
 };
 
-const SdUtilities = {
+const Utilities = {
   upload,
   download,
   downloadBlob,
@@ -371,4 +350,4 @@ const SdUtilities = {
   generateUuid,
   getNestedValue
 };
-export { SdUtilities };
+export { Utilities };

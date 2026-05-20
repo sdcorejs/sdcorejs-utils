@@ -1,6 +1,6 @@
 type Primitive = string | number | boolean | null | undefined | Date | Function;
 
-export type SdNestedKeyOf<ObjectType, Depth extends number[] = []> = Depth['length'] extends 4
+export type NestedKeyOf<ObjectType, Depth extends number[] = []> = Depth['length'] extends 4
   ? never
   : ObjectType extends object
     ? {
@@ -9,7 +9,7 @@ export type SdNestedKeyOf<ObjectType, Depth extends number[] = []> = Depth['leng
           : ObjectType[Key] extends Array<any>
             ? Key
             : ObjectType[Key] extends object
-              ? Key | `${Key}.${SdNestedKeyOf<ObjectType[Key], [...Depth, 1]>}`
+              ? Key | `${Key}.${NestedKeyOf<ObjectType[Key], [...Depth, 1]>}`
               : Key;
       }[keyof ObjectType & string]
     : string;

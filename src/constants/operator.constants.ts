@@ -1,7 +1,7 @@
-import { SdOperator } from '../models/operator.model';
+import { Operator } from '../models/operator.model';
 
-export const SdOperators: {
-  value: SdOperator;
+export const OPERATORS: {
+  value: Operator;
   symbol?: string;
   display: string;
 }[] = [

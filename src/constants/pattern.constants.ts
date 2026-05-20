@@ -1,7 +1,7 @@
-import { SdPatternCommon } from '../models/pattern.model';
+import { PatternCommon } from '../models/pattern.model';
 import { StringUtilities } from '../fns/string.fns';
 
-export const SdPatternCommons: SdPatternCommon[] = [
+export const PATTERN_COMMONS: PatternCommon[] = [
   { type: 'EMAIL',            name: 'core.validator.email.name',    regex: StringUtilities.REGEX_EMAIL,            errorMessage: 'core.validator.email.error' },
   { type: 'PHONE',            name: 'core.validator.phone.name',    regex: StringUtilities.REGEX_PHONE,            errorMessage: 'core.validator.phone.error' },
   { type: 'PHONE_VN',         name: 'core.validator.phone-vn.name', regex: StringUtilities.REGEX_PHONE_VN,         errorMessage: 'core.validator.phone-vn.error' },

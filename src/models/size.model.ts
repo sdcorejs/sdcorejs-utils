@@ -1,1 +1,1 @@
-export type SdSize = 'sm' | 'md' | 'lg';
+export type Size = 'sm' | 'md' | 'lg';
