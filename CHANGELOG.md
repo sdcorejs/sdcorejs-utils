@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+### Minor Changes
+
+- - Add `NOT_START_WITH` and `NOT_END_WITH` operators to `OperatorHasData` union and `OPERATORS` UI metadata list. Fills a gap when building filter UIs that need negated prefix/suffix matching. Replaces the legacy typo `NOT_END_WIDTH` from `be-masterdata/core-be` with the correctly-spelled `NOT_END_WITH` — consumers migrating from `core-be` rename `NOT_END_WIDTH` → `NOT_END_WITH` at the call site.
+
+## 1.1.0
+
+### Minor Changes
+
+- Add `NOT_START_WITH` and `NOT_END_WITH` operators to `OperatorHasData` union and `OPERATORS` UI metadata list. Fills a gap when building filter UIs that need negated prefix/suffix matching. Replaces the legacy typo `NOT_END_WIDTH` from `be-masterdata/core-be` with the correctly-spelled `NOT_END_WITH` — consumers migrating from `core-be` rename `NOT_END_WIDTH` → `NOT_END_WITH` at the call site.
+
 All notable changes to `@sdcorejs/utils` are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
@@ -59,6 +71,7 @@ Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (
 ### Added
 
 **`@sdcorejs/utils/models`**
+
 - `Filter<T>`, `FilterHasData<T>`, `FilterBetween<T>`, `FilterNoData<T>`, `FilterAndOr<T>`
 - `Order<T>`, `QueryReq<T>`, `PagingReq<T>`, `PagingRes<T>`
 - `NestedKeyOf<T>` — recursive dot-path type, depth-limited to 4 levels
@@ -68,6 +81,7 @@ Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (
 - `Size`, `Color`, `Language`, `MaterialIconFontSet`
 
 **`@sdcorejs/utils/constants`**
+
 - `EMPTY_STR` — default placeholder for empty display values (`'--'`)
 - `OPERATORS` — lookup table for all 14 filter operators
 - `PATTERN_COMMONS` — built-in validator definitions (email, phone, CCCD, passport, time)
@@ -76,6 +90,7 @@ Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (
 - `DEFAULT_MATERIAL_SYMBOL_FONT_SET` — `'material-symbols-outlined'`
 
 **`@sdcorejs/utils/fns`**
+
 - `StringUtilities` — regex constants, validators, Vietnamese diacritic normalization, template interpolation, encrypt/decrypt, `sha256`
 - `ArrayUtilities` — search (diacritic-insensitive, tree-aware), union, toObject, distinct, paging
 - `NumberUtilities` — VN/ISO formatters, isNumber, round
@@ -85,6 +100,7 @@ Initial release. Pure TypeScript utility library extracted from `@vn-angular/` (
 - `detectIncognito` — cross-browser private-mode detection
 
 ### Infrastructure
+
 - Build: tsup — outputs ESM (`.js`), CJS (`.cjs`), type declarations (`.d.ts`) for each subpath entry
 - Test: vitest, 29 tests
 - CI/CD: GitHub Actions — publish to npm on merge to `main`
