@@ -62,9 +62,19 @@ export const OPERATORS: {
     display: "core.operator.start-with.display",
   },
   {
+    value: "NOT_START_WITH",
+    symbol: "line_start_square",
+    display: "core.operator.not-start-with.display",
+  },
+  {
     value: "END_WITH",
     symbol: "line_end_circle",
     display: "core.operator.end-with.display",
+  },
+  {
+    value: "NOT_END_WITH",
+    symbol: "line_end_square",
+    display: "core.operator.not-end-with.display",
   },
   { value: "IN", symbol: "checklist_rtl", display: "core.operator.in.display" },
   {

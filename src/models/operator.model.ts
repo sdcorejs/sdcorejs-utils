@@ -14,7 +14,8 @@ export type Operator = OperatorHasData | OperatorNoData;
  * - `EQUAL` / `NOT_EQUAL` — exact match / mismatch
  * - `CONTAIN` / `NOT_CONTAIN` — substring / non-substring match
  * - `IN` / `NOT_IN` — membership in a set
- * - `START_WITH` / `END_WITH` — prefix / suffix match
+ * - `START_WITH` / `NOT_START_WITH` — prefix match / non-match
+ * - `END_WITH` / `NOT_END_WITH` — suffix match / non-match
  * - `GREATER_THAN` / `LESS_THAN` — strict numeric / date comparison
  * - `GREATER_OR_EQUAL` / `LESS_OR_EQUAL` — inclusive numeric / date comparison
  * - `BETWEEN` — inclusive range check (use `FilterBetween` for the `{ from, to }` shape)
@@ -30,7 +31,9 @@ export type OperatorHasData =
   | 'IN'
   | 'NOT_IN'
   | 'START_WITH'
+  | 'NOT_START_WITH'
   | 'END_WITH'
+  | 'NOT_END_WITH'
   | 'GREATER_THAN'
   | 'LESS_THAN'
   | 'GREATER_OR_EQUAL'
