@@ -54,7 +54,7 @@ export function renderConstants(el: HTMLElement): void {
 
   const table2 = document.createElement('table');
   const thead2 = document.createElement('thead');
-  thead2.innerHTML = '<tr><th>value</th><th>symbol</th><th>display</th></tr>';
+  thead2.innerHTML = '<tr><th>value</th><th>icon</th><th>display</th></tr>';
   table2.appendChild(thead2);
   const tbody2 = document.createElement('tbody');
   for (const op of OPERATORS) {
@@ -64,7 +64,9 @@ export function renderConstants(el: HTMLElement): void {
     code.textContent = op.value;
     td1.appendChild(code);
     const td2 = document.createElement('td');
-    td2.textContent = op.symbol ?? '';
+    // `op.icon` chứa inner SVG markup (path/line/rect…) — bọc bằng <svg> dùng
+    // viewBox 0 0 24 24 + stroke=currentColor để khớp cách render ở app thật.
+    td2.innerHTML = `<svg class="op-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${op.icon}</svg>`;
     const td3 = document.createElement('td');
     td3.textContent = op.display;
     tr.append(td1, td2, td3);

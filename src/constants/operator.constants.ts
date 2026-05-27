@@ -5,10 +5,10 @@ import { Operator } from "../models/operator.model";
  *
  * Each entry provides:
  * - `value` — the `Operator` string sent to the API
- * - `symbol` — optional icon ligature or Unicode glyph rendered in the UI
+ * - `icon` — inner SVG markup (paths/lines/rects) rendered inside a 24×24 `<svg>` in the UI
  * - `display` — i18n key resolved by `I18nService` for the operator label
  *
- * Operators that check null-presence (`NULL`, `NOT_NULL`) have a `symbol` but no `data` field
+ * Operators that check null-presence (`NULL`, `NOT_NULL`) have an `icon` but no `data` field
  * in the corresponding `FilterNoData` shape.
  *
  * @example
