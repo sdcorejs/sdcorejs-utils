@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+### Patch Changes
+
+- 0793771: Thêm operator `BETWEEN` (kèm icon SVG) vào `OPERATORS`.
+
 ## 1.1.1
 
 ### Patch Changes
