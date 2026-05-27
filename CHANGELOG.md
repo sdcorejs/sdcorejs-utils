@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+### Patch Changes
+
+- 7a81260: Thay `symbol` bằng `icon` (SVG path) trong `OPERATORS` để render biểu tượng toán tử trực tiếp.
+
 ## 1.1.0
 
 ### Minor Changes
