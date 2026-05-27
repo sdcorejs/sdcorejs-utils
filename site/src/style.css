@@ -36,6 +36,7 @@ table { width: 100%; border-collapse: collapse; background: var(--surface); bord
 th { background: var(--bg); color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .5px; padding: 10px 14px; text-align: left; text-transform: uppercase; }
 td { border-top: 1px solid var(--border); padding: 10px 14px; vertical-align: top; }
 tr:hover td { background: var(--surface-hover); }
+.op-icon { color: var(--primary); display: block; }
 
 .code-block { background: #0d1117; border-radius: var(--radius); color: #e6edf3; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.6; overflow-x: auto; padding: 16px; }
 .code-block .kw { color: #ff7b72; }
