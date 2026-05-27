@@ -93,6 +93,13 @@ export const OPERATORS: {
     display: "core.operator.not-in.display",
   },
   {
+    // Two endpoint dots connected by a line — "value falls within {from, to}".
+    // Distinct from string-match pill family because there is no enclosing rect.
+    value: "BETWEEN",
+    icon: `<line x1="6" y1="12" x2="18" y2="12"/><circle cx="6" cy="12" r="2.75" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="2.75" fill="currentColor" stroke="none"/>`,
+    display: "core.operator.between.display",
+  },
+  {
     value: "NULL",
     icon: `<circle cx="12" cy="12" r="7" stroke-dasharray="2.4 2.6"/><line x1="17.5" y1="6.5" x2="6.5" y2="17.5"/>`,
     display: "core.operator.null.display",
