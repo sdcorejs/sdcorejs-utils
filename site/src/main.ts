@@ -4,21 +4,24 @@ import { renderConstants } from './tabs/constants';
 import { renderModels } from './tabs/models';
 import { renderValidation } from './tabs/validation';
 import { renderFunctions } from './tabs/functions';
+import { renderFilter } from './tabs/filter';
 
 const TABS = [
   { id: 'constants',  label: 'Constants' },
   { id: 'models',     label: 'Models' },
   { id: 'validation', label: 'Validation Playground' },
   { id: 'functions',  label: 'Functions Demo' },
+  { id: 'filter',     label: 'Filter Playground' },
 ];
 
-type TabId = 'constants' | 'models' | 'validation' | 'functions';
+type TabId = 'constants' | 'models' | 'validation' | 'functions' | 'filter';
 
 const RENDERERS: Record<TabId, (el: HTMLElement) => void> = {
   constants:  renderConstants,
   models:     renderModels,
   validation: renderValidation,
   functions:  renderFunctions,
+  filter:     renderFilter,
 };
 
 function mount(): void {
