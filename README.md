@@ -125,6 +125,43 @@ const query: PagingReq<User> = {
 
 ---
 
+## Client-side Filtering
+
+Evaluate the same `Filter[]` you send to the API directly against in-memory objects —
+useful for optimistic UI, local search, and previewing query results.
+
+```ts
+import { FilterUtilities } from '@sdcorejs/utils/fns';
+import type { Filter } from '@sdcorejs/utils/models';
+
+const filters: Filter<Product>[] = [
+  // literal
+  { field: 'category', operator: 'EQUAL', data: 'electronics' },
+  // field-to-field — compare two fields on the same entity
+  { field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' },
+  // relative date — TODAY, or N previous/next hour|day|week|month
+  { field: 'createdAt', operator: 'GREATER_OR_EQUAL',
+    dataType: 'date-relative', data: { amount: 7, direction: 'previous', unit: 'day' } },
+];
+
+// Top-level array = implicit AND. Empty list matches everything.
+FilterUtilities.match(filters, product);                 // boolean
+products.filter(p => FilterUtilities.match(filters, p));  // local filtering
+```
+
+**Type-aware coercion.** The client rarely knows a field's declared type — a date may arrive
+as a `Date`, an ISO string, or a numeric (ms/seconds) timestamp. When the operand is itself a
+date (`date-today` / `date-relative`), both sides are coerced to epoch ms automatically. For
+the cases the filter can't infer (field-vs-field dates, seconds timestamps), pass `fieldTypes`:
+
+```ts
+FilterUtilities.match(filters, product, {
+  fieldTypes: { createdAt: 'date', updatedAtMs: 'date', sku: 'number' },
+});
+```
+
+---
+
 # 📚 Subpath Exports
 
 ```ts
@@ -273,6 +310,20 @@ General-purpose utilities.
 | `randomId(prefix?)`     | Unique random ID      |
 | `generateUuid()`        | UUID generation       |
 | `parseQueryParams(qs?)` | Query string parser   |
+
+---
+
+### `FilterUtilities`
+
+Client-side evaluation of the `Filter` model against in-memory objects.
+
+| Member                            | Description                                                   |
+| --------------------------------- | ------------------------------------------------------------- |
+| `match(filters, entity, opts?)`   | `true` if the entity satisfies every filter (implicit AND)    |
+| `evaluate(filter, entity, opts?)` | Evaluate a single (possibly nested) filter                    |
+| `relativeDate(amount, dir, unit)` | Build a `DateRelative` operand                                |
+| `isDateRelative(v)`               | Type guard for `DateRelative`                                 |
+| `toEpoch(v)`                      | Normalize a `Date` / ISO string / ms or seconds timestamp → ms |
 
 ---
 
