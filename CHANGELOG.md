@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4
+
+### Patch Changes
+
+- Add `ObjectUtilities` with plain-object detection, deep clone, deep merge, and multi-source deep merge helpers. Update the docs site with interactive ObjectUtilities demos.
+
 ## 1.1.3
 
 ### Patch Changes
