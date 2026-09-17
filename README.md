@@ -277,12 +277,13 @@ void name;
 ## Serialization and hashing
 
 `stableStringify` is deterministic for its documented JSON-compatible domain (plus
-valid `Date` values). It sorts plain-object keys and rejects unsupported values, sparse
-arrays, accessors, class instances, and cycles with typed errors.
+`Date` values, where a `Date` holding `NaN` encodes as `"Invalid Date"`). It sorts
+plain-object keys and rejects unsupported values, sparse arrays, accessors, class
+instances, and cycles with typed errors.
 
 `canonicalStringify` adds tagged encodings for `undefined`, non-finite numbers,
-negative zero, `BigInt`, `Date`, `RegExp`, `Map`, `Set`, `ArrayBuffer`, typed arrays, and
-sparse-array holes. It rejects functions, symbols, Blob/File metadata-only encoding,
+negative zero, `BigInt`, `Date` (including one holding `NaN`), `RegExp`, `Map`, `Set`,
+`ArrayBuffer`, typed arrays, and sparse-array holes. It rejects functions, symbols, Blob/File metadata-only encoding,
 arbitrary class instances, accessors, and cycles.
 
 `hash32` is a fast, collision-prone, non-cryptographic compatibility hash. It is not

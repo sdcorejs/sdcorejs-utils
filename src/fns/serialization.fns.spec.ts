@@ -24,6 +24,34 @@ describe('stableStringify strict JSON domain', () => {
     expect(stableStringify(-0)).toBe('0');
   });
 
+  it('encodes an invalid Date instead of aborting the surrounding value', () => {
+    expect(stableStringify(new Date(NaN))).toBe('"Invalid Date"');
+    expect(stableStringify(new Date('not-a-date'))).toBe(stableStringify(new Date(NaN)));
+    expect(stableStringify({ id: 1, at: new Date(NaN) })).toBe('{"at":"Invalid Date","id":1}');
+  });
+
+  it('shares the invalid-Date encoding with the literal string, as the JSON domain implies', () => {
+    // Documented on INVALID_DATE_TEXT: a valid Date already shares its encoding with the
+    // equivalent ISO string, so the degenerate state behaves the same way.
+    expect(stableStringify(new Date(NaN))).toBe(stableStringify('Invalid Date'));
+    expect(stableStringify(new Date('2026-01-02T03:04:05.000Z')))
+      .toBe(stableStringify('2026-01-02T03:04:05.000Z'));
+  });
+
+  it('encodes an invalid Date nested in an array', () => {
+    expect(stableStringify([new Date(NaN), 1])).toBe('["Invalid Date",1]');
+    expect(stableStringify({ rows: [{ at: new Date(NaN) }] })).toBe('{"rows":[{"at":"Invalid Date"}]}');
+  });
+
+  it('keeps an invalid Date distinct from a valid one and from null', () => {
+    expect(stableStringify(new Date(NaN))).not.toBe(stableStringify(new Date('2026-01-02T03:04:05.000Z')));
+    expect(stableStringify(new Date(NaN))).not.toBe(stableStringify(null));
+  });
+
+  it('still rejects the plain-number NaN that stays outside the JSON domain', () => {
+    expect(() => stableStringify(NaN)).toThrow(UnsupportedSerializationTypeError);
+  });
+
   it.each([
     undefined,
     () => undefined,
@@ -125,6 +153,21 @@ describe('canonicalStringify extended domain', () => {
     expect(encoded).toBe(canonicalStringify(value));
   });
 
+  it('tags an invalid Date without colliding with any valid one', () => {
+    const encoded = canonicalStringify(new Date(NaN));
+    expect(encoded).toContain('invalid');
+    expect(encoded).toBe(canonicalStringify(new Date('not-a-date')));
+    expect(encoded).not.toBe(canonicalStringify(new Date('2026-01-01T00:00:00.000Z')));
+    expect(encoded).not.toBe(canonicalStringify(null));
+    expect(encoded).not.toBe(canonicalStringify('invalid'));
+  });
+
+  it('digests an invalid Date through the async canonical API', async () => {
+    await expect(sha256Canonical({ at: new Date(NaN) })).resolves.toMatch(/^[0-9a-f]{64}$/);
+    await expect(sha256Canonical({ at: new Date(NaN) }))
+      .resolves.not.toBe(await sha256Canonical({ at: new Date('2026-01-01T00:00:00.000Z') }));
+  });
+
   it('cannot collide with user objects that resemble internal tags', () => {
     expect(canonicalStringify(['@sdcorejs/canonical/v1', 'null']))
       .not.toBe(canonicalStringify(null));
@@ -157,6 +200,13 @@ describe('hash contracts', () => {
   it('preserves the legacy simple-value hash through the accurate hash32 name', () => {
     expect(hash({ b: 2, a: 1 })).toBe(hash32({ a: 1, b: 2 }));
     expect(hash32({ a: 1, b: 2 })).toMatch(/^h\d+$/);
+  });
+
+  it('hashes a record holding an invalid Date instead of throwing', () => {
+    expect(hash32({ id: 1, at: new Date(NaN) })).toMatch(/^h\d+$/);
+    expect(hash32({ id: 1, at: new Date(NaN) })).toBe(hash32({ at: new Date('not-a-date'), id: 1 }));
+    expect(hash32({ id: 1, at: new Date(NaN) }))
+      .not.toBe(hash32({ id: 1, at: new Date('2026-01-01T00:00:00.000Z') }));
   });
 
   it('hashes canonical equivalents to equal SHA-256 digests', async () => {

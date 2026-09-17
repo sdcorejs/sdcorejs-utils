@@ -9,6 +9,7 @@ import {
   WebCryptoUnavailableError,
 } from '../errors';
 import { decodeBase64Url, decodeUtf8, encodeBase64Url, encodeUtf8 } from '../internal/encoding';
+import { assertNoInvalidDate } from '../internal/invalid-date';
 import { getOwnPropertyPath, PropertyPathOptions } from '../internal/property-path';
 import { stableStringify } from './serialization.fns';
 
@@ -293,6 +294,11 @@ export const encryptAesGcm = async <T>(
   const additionalData = normalizeAdditionalData(options.additionalData);
   const algorithm: AesGcmParams = { name: 'AES-GCM', iv, tagLength: 128 };
   if (additionalData) algorithm.additionalData = additionalData;
+  // Fail-closed on an invalid Date. stableStringify encodes one as "Invalid Date" so a
+  // single bad cell cannot abort a whole value, but this plaintext is read back with
+  // JSON.parse, so accepting it would decrypt to the string instead of the Date. Keeping
+  // the pre-1.2.1 rejection preserves the "supported JSON-domain value" contract.
+  assertNoInvalidDate(value);
   const plaintext = encodeUtf8(stableStringify(value));
   let ciphertext: ArrayBuffer;
   try {

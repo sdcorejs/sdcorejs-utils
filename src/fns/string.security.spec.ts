@@ -105,6 +105,21 @@ describe('StringUtilities AES-GCM', () => {
     await expect(StringUtilities.encryptAesGcm(undefined, key))
       .rejects.toBeInstanceOf(UnsupportedSerializationTypeError);
   });
+
+  it('stays fail-closed on an invalid Date that stableStringify would encode', async () => {
+    // The plaintext is read back with JSON.parse, so an encoded invalid Date would decrypt
+    // as the string "Invalid Date" rather than failing. Reject it instead.
+    await expect(StringUtilities.encryptAesGcm(new Date(NaN), key))
+      .rejects.toBeInstanceOf(UnsupportedSerializationTypeError);
+    await expect(StringUtilities.encryptAesGcm({ rows: [{ at: new Date(NaN) }] }, key))
+      .rejects.toBeInstanceOf(UnsupportedSerializationTypeError);
+  });
+
+  it('still accepts a valid Date, which round-trips as its ISO string', async () => {
+    const token = await StringUtilities.encryptAesGcm({ at: new Date('2026-01-02T03:04:05.000Z') }, key);
+    await expect(StringUtilities.decryptAesGcm(token, key))
+      .resolves.toEqual({ at: '2026-01-02T03:04:05.000Z' });
+  });
 });
 
 describe('safe literal string replacement', () => {
