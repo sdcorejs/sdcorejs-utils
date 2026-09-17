@@ -21,6 +21,10 @@
   Widening only: no previously successful call changes its output. The plain-number `NaN`
   stays outside the JSON domain and `stableStringify` still rejects it.
 
+  `encryptAesGcm` deliberately does not widen with it. Its plaintext is read back with
+  `JSON.parse`, so an encoded invalid `Date` would decrypt as the string `"Invalid Date"`
+  instead of failing; it keeps rejecting the value with `UnsupportedSerializationTypeError`.
+
 ## 1.2.0
 
 ### Minor Changes

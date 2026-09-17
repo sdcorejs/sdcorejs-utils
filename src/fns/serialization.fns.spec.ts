@@ -30,6 +30,19 @@ describe('stableStringify strict JSON domain', () => {
     expect(stableStringify({ id: 1, at: new Date(NaN) })).toBe('{"at":"Invalid Date","id":1}');
   });
 
+  it('shares the invalid-Date encoding with the literal string, as the JSON domain implies', () => {
+    // Documented on INVALID_DATE_TEXT: a valid Date already shares its encoding with the
+    // equivalent ISO string, so the degenerate state behaves the same way.
+    expect(stableStringify(new Date(NaN))).toBe(stableStringify('Invalid Date'));
+    expect(stableStringify(new Date('2026-01-02T03:04:05.000Z')))
+      .toBe(stableStringify('2026-01-02T03:04:05.000Z'));
+  });
+
+  it('encodes an invalid Date nested in an array', () => {
+    expect(stableStringify([new Date(NaN), 1])).toBe('["Invalid Date",1]');
+    expect(stableStringify({ rows: [{ at: new Date(NaN) }] })).toBe('{"rows":[{"at":"Invalid Date"}]}');
+  });
+
   it('keeps an invalid Date distinct from a valid one and from null', () => {
     expect(stableStringify(new Date(NaN))).not.toBe(stableStringify(new Date('2026-01-02T03:04:05.000Z')));
     expect(stableStringify(new Date(NaN))).not.toBe(stableStringify(null));

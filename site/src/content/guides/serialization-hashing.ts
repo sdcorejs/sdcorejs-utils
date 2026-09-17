@@ -27,7 +27,7 @@ export default createPageContent({
           [
             [
               [inlineCode('stableStringify')],
-              [localized(context.locale, { en: 'JSON-compatible data plus valid Date values', vi: 'Dữ liệu tương thích JSON và Date hợp lệ' })],
+              [localized(context.locale, { en: 'JSON-compatible data plus Date values (a Date holding NaN encodes as "Invalid Date")', vi: 'Dữ liệu tương thích JSON và Date (Date NaN thành "Invalid Date")' })],
               [localized(context.locale, { en: 'Rejects undefined and extended values', vi: 'Từ chối undefined và giá trị mở rộng' })],
             ],
             [
