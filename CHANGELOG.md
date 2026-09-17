@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.1
+
+### Patch Changes
+
+- Encode an invalid `Date` instead of rejecting the value that contains it.
+
+  `stableStringify` and `canonicalStringify` both threw `UnsupportedSerializationTypeError`
+  for a `Date` holding `NaN`, so a single unparsable date aborted serialization — and with it
+  `hash32`/`hash` and `sha256Canonical` — for an otherwise fully supported value. Callers that
+  key UI state by `hash32` lost every row of a list to one malformed date cell.
+
+  An invalid `Date` has exactly one observable state, so it now encodes deterministically:
+  `stableStringify` emits `"Invalid Date"`, matching `String(new Date(NaN))`, and
+  `canonicalStringify` emits its own tag payload, which cannot collide with a valid date
+  because a valid payload is always an ISO-8601 string. This matches how the canonical domain
+  already encodes the other degenerate-but-well-defined values (`NaN`, the infinities,
+  negative zero, array holes).
+
+  Widening only: no previously successful call changes its output. The plain-number `NaN`
+  stays outside the JSON domain and `stableStringify` still rejects it.
+
 ## 1.2.0
 
 ### Minor Changes

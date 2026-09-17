@@ -56,8 +56,10 @@ raise the explicit `maxDepth` only for trusted, intentionally deep data.
 ## Serialization and hashing
 
 `stableStringify` now always returns a string or throws. It supports deterministic
-JSON-compatible data plus valid dates and rejects unsupported values, cycles, sparse
-arrays, accessors, and class instances.
+JSON-compatible data plus dates and rejects unsupported values, cycles, sparse
+arrays, accessors, and class instances. A `Date` holding `NaN` encodes as
+`"Invalid Date"` rather than aborting the surrounding value; the plain-number `NaN`
+stays outside the JSON domain and is still rejected.
 
 Use `canonicalStringify` for the documented extended JavaScript value domain. Use
 `sha256Canonical` when a cryptographic digest of that representation is required, or

@@ -20,6 +20,18 @@ export type CanonicalStringifyOptions = SerializationOptions;
 
 const DEFAULT_MAX_DEPTH = 100;
 
+/**
+ * JSON-domain encoding of a `Date` whose time value is `NaN`.
+ *
+ * Matches `String(new Date(NaN))`, so the encoding stays predictable for readers. It can
+ * collide with the literal string `'Invalid Date'`, which is inherent to the JSON domain:
+ * a valid `Date` already shares its encoding with the equivalent ISO string.
+ */
+const INVALID_DATE_TEXT = 'Invalid Date';
+
+/** Canonical payload for a `Date` whose time value is `NaN`. */
+const INVALID_DATE_TAG = 'invalid';
+
 const getMaxDepth = (options: SerializationOptions): number => {
   const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH;
   if (!Number.isSafeInteger(maxDepth) || maxDepth <= 0) {
@@ -108,10 +120,11 @@ const readDataProperty = (value: object, key: string, path: string): unknown => 
 /**
  * Deterministically serializes JSON-compatible values, sorting plain-object keys.
  *
- * `Date` is retained for v1.x compatibility and encodes as its ISO string. The
- * function rejects `undefined`, functions, symbols, bigint, non-finite numbers,
- * sparse arrays, accessors, class instances, binary/collection objects, and cycles.
- * Negative zero follows JSON semantics and encodes as `0`.
+ * `Date` is retained for v1.x compatibility and encodes as its ISO string; a `Date`
+ * holding `NaN` encodes as `"Invalid Date"`. The function rejects `undefined`, functions,
+ * symbols, bigint, non-finite numbers, sparse arrays, accessors, class instances,
+ * binary/collection objects, and cycles. Negative zero follows JSON semantics and
+ * encodes as `0`.
  */
 export const stableStringify = (value: unknown, options: StableStringifyOptions = {}): string => {
   const maxDepth = getMaxDepth(options);
@@ -142,7 +155,9 @@ export const stableStringify = (value: unknown, options: StableStringifyOptions 
     try {
       if (current instanceof Date) {
         assertNoEnumerableExpando(current, path);
-        if (!Number.isFinite(current.getTime())) throw new UnsupportedSerializationTypeError('Invalid Date', path);
+        // An invalid Date has exactly one observable state, so it encodes deterministically
+        // instead of aborting the serialization of an otherwise supported value.
+        if (!Number.isFinite(current.getTime())) return JSON.stringify(INVALID_DATE_TEXT);
         return JSON.stringify(current.toISOString());
       }
       if (Array.isArray(current)) {
@@ -207,7 +222,10 @@ const canonicalNode = (
   try {
     if (value instanceof Date) {
       assertNoEnumerableExpando(value, path);
-      if (!Number.isFinite(value.getTime())) throw new UnsupportedSerializationTypeError('Invalid Date', path);
+      // Tagged rather than rejected, matching how this domain already encodes the other
+      // degenerate-but-well-defined values (`NaN`, the infinities, array holes). The payload
+      // cannot collide with a valid date, whose payload is always an ISO-8601 string.
+      if (!Number.isFinite(value.getTime())) return tagged('date', INVALID_DATE_TAG);
       return tagged('date', value.toISOString());
     }
     if (value instanceof RegExp) {
@@ -274,8 +292,10 @@ const canonicalNode = (
 
 /**
  * Canonically encodes supported extended JavaScript values with collision-safe type tags.
- * Object keys, map entries, and set values are deterministically ordered. Functions,
- * symbols, class instances, accessors, Blob/File values, and cycles are rejected.
+ * Object keys, map entries, and set values are deterministically ordered. A `Date` holding
+ * `NaN` carries its own tag payload, alongside the existing tags for `NaN`, the infinities,
+ * negative zero, and array holes. Functions, symbols, class instances, accessors, Blob/File
+ * values, and cycles are rejected.
  */
 export const canonicalStringify = (value: unknown, options: CanonicalStringifyOptions = {}): string =>
   JSON.stringify(canonicalNode(value, getMaxDepth(options), new WeakSet(), '$', 0));
