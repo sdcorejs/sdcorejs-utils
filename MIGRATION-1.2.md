@@ -66,8 +66,10 @@ Use `canonicalStringify` for the documented extended JavaScript value domain. Us
 `sha256Blob` to hash actual Blob/File bytes.
 
 `hash` remains as a deprecated compatibility name. Rename it to `hash32`, but remember
-that the algorithm is collision-prone and non-cryptographic. Unsupported values that
-previously collided or produced invalid output now throw.
+that the algorithm is collision-prone and non-cryptographic. `hash32` is total: values the
+strict JSON domain rejects are substituted with namespaced placeholders rather than
+throwing, and values inside that domain keep the key they have always had. The strict
+serializers themselves still reject, so use them when you want that signal.
 
 ## Date APIs
 
@@ -194,7 +196,7 @@ function is returned unchanged with its concrete type, preserving its operators.
 | --- | --- | --- |
 | `encrypt` | `obfuscate` or `encryptAesGcm` | Legacy bytes unchanged; it is not encryption. |
 | `decrypt` | `deobfuscate` or `decryptAesGcm` | Legacy values remain readable; formats are not interchangeable. |
-| `hash` | `hash32` or `sha256Canonical` | Simple legacy values retain the hash; unsupported values now throw. |
+| `hash` | `hash32` or `sha256Canonical` | Simple legacy values retain the hash; `hash32` is total and substitutes unsupported values. |
 | `dayDiff` | `calendarDayDifference` / `elapsedDayDifference` | Legacy floor semantics remain in the wrapper. |
 | `yearDiff` | `completedYearDifference` | Legacy calendar-year boundary behavior remains in the wrapper. |
 | `age` | `completedAge` / `decimalYearDifference` | Legacy decimal month-based behavior remains in the wrapper. |

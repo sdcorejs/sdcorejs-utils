@@ -209,6 +209,90 @@ describe('hash contracts', () => {
       .not.toBe(hash32({ id: 1, at: new Date('2026-01-01T00:00:00.000Z') }));
   });
 
+  it('keeps the strict-domain key unchanged, so existing hashes never shift', () => {
+    // The fast path must stay authoritative: a well-formed value is still hashed straight
+    // through stableStringify, which is what persisted keys were built from.
+    const digest = (serialized: string): string => {
+      let result = 0;
+      for (let index = 0; index < serialized.length; index++) {
+        result = (result << 5) - result + serialized.charCodeAt(index);
+        result |= 0;
+      }
+      return `h${Math.abs(result)}`;
+    };
+    for (const value of [{ b: 2, a: 1 }, [1, 2, 3], 'text', 42, null, new Date('2026-01-01T00:00:00.000Z')]) {
+      expect(hash32(value)).toBe(digest(stableStringify(value)));
+    }
+  });
+
+  it('is total over the values the strict domain rejects', () => {
+    const circular: Record<string, unknown> = { id: 1 };
+    circular['self'] = circular;
+    const sparse: unknown[] = [1];
+    sparse[3] = 2;
+    class Row {
+      id = 1;
+    }
+    const accessor = Object.defineProperty({}, 'lazy', { enumerable: true, get: () => 1 });
+
+    for (const value of [
+      undefined,
+      NaN,
+      Infinity,
+      10n,
+      () => undefined,
+      Symbol('x'),
+      { at: new Date(NaN) },
+      { rows: sparse },
+      { data: new Row() },
+      { data: new Map([['a', 1]]) },
+      { data: new Set([1, 2]) },
+      { data: circular },
+      { data: accessor },
+    ]) {
+      expect(() => hash32(value)).not.toThrow();
+      expect(hash32(value)).toMatch(/^h\d+$/);
+    }
+  });
+
+  it('keeps substituted values distinct from each other and from plain strings', () => {
+    expect(hash32({ a: undefined })).not.toBe(hash32({ a: null }));
+    expect(hash32({ a: undefined })).not.toBe(hash32({}));
+    expect(hash32({ a: undefined })).not.toBe(hash32({ a: 'undefined' }));
+    expect(hash32({ n: NaN })).not.toBe(hash32({ n: Infinity }));
+    expect(hash32({ n: Infinity })).not.toBe(hash32({ n: -Infinity }));
+  });
+
+  it('separates a sparse hole from a real undefined', () => {
+    const sparse: unknown[] = [1];
+    sparse[3] = 2;
+    expect(hash32({ rows: sparse })).not.toBe(hash32({ rows: [1, undefined, undefined, 2] }));
+  });
+
+  it('is deterministic for a substituted value', () => {
+    const build = () => ({ id: 1, at: new Date(NaN), onClick: () => undefined, missing: undefined });
+    expect(hash32(build())).toBe(hash32(build()));
+  });
+
+  it('does not invoke an accessor while hashing', () => {
+    let reads = 0;
+    const value = { id: 1, missing: undefined };
+    Object.defineProperty(value, 'lazy', {
+      enumerable: true,
+      get: () => {
+        reads++;
+        return 1;
+      },
+    });
+    hash32(value);
+    expect(reads).toBe(0);
+  });
+
+  it('leaves the strict serializers rejecting, so validation callers keep their signal', () => {
+    expect(() => stableStringify(undefined)).toThrow(UnsupportedSerializationTypeError);
+    expect(() => canonicalStringify(() => undefined)).toThrow(UnsupportedSerializationTypeError);
+  });
+
   it('hashes canonical equivalents to equal SHA-256 digests', async () => {
     await expect(sha256Canonical({ b: new Set([2, 1]), a: 1 }))
       .resolves.toBe(await sha256Canonical({ a: 1, b: new Set([1, 2]) }));

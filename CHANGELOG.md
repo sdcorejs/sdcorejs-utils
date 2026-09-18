@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.2
+
+### Patch Changes
+
+- Make `hash32` (and its `hash` alias) total instead of throwing.
+
+  `hash32` is a bucket key for runtime data, not a serialization, yet it inherited
+  `stableStringify`'s strict JSON domain and threw `UnsupportedSerializationTypeError` for
+  `undefined` at any depth, non-finite numbers, `bigint`, functions, symbols, sparse arrays,
+  accessors, class instances, `Map`/`Set`, `Blob`/`File` and cycles. Callers that key caches,
+  rows or groups by a hash of caller-supplied data lost the whole operation to one `undefined`
+  field, and were pushed into writing their own wrapper around this function.
+
+  A value inside the strict domain is still hashed straight through `stableStringify`, so
+  every key that exists today is unchanged — important because these keys reach persistent
+  storage. Only when that attempt throws is the value re-hashed from a copy in which each
+  rejected value is replaced by its own namespaced placeholder, so those inputs hash
+  deterministically and still differ from one another; a sparse hole stays distinct from a
+  real `undefined`, and accessors are never invoked.
+
+  `stableStringify` and `canonicalStringify` are unchanged and still reject, so callers using
+  them to validate that data is serializable keep that signal.
+
 ## 1.2.1
 
 ### Patch Changes
