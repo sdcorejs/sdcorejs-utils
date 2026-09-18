@@ -301,13 +301,93 @@ export const canonicalStringify = (value: unknown, options: CanonicalStringifyOp
   JSON.stringify(canonicalNode(value, getMaxDepth(options), new WeakSet(), '$', 0));
 
 /**
- * Produces the library's legacy 32-bit string hash over stable serialization.
- *
- * This hash is non-cryptographic, collision-prone, and unsuitable for signatures,
- * authentication, authorization, or untrusted persistent cache identities.
+ * Prefix for the placeholders {@link hash32} substitutes for values the strict JSON
+ * domain cannot encode. Namespaced so a plain user string cannot be mistaken for one.
  */
-export const hash32 = (value: unknown): string => {
-  const serialized = stableStringify(value);
+const HASH_PLACEHOLDER = '@sdcorejs/hash/v1:';
+
+const placeholder = (kind: string, detail?: string): string =>
+  detail === undefined ? `${HASH_PLACEHOLDER}${kind}` : `${HASH_PLACEHOLDER}${kind}:${detail}`;
+
+const isFileValue = (value: object): value is File =>
+  typeof File !== 'undefined' && value instanceof File;
+
+const isBlobValue = (value: object): value is Blob =>
+  typeof Blob !== 'undefined' && value instanceof Blob;
+
+/**
+ * Rewrites the values {@link stableStringify} rejects into distinct placeholders.
+ *
+ * Only reached after a strict attempt has already failed, so a well-formed value never
+ * pays for this pass and never changes its hash. Each rejected kind keeps its own
+ * placeholder, so the substitution does not merge inputs that differ.
+ */
+const substituteUnsupported = (value: unknown, seen: WeakSet<object>): unknown => {
+  if (value === undefined) return placeholder('undefined');
+  if (typeof value === 'number' && !Number.isFinite(value)) return placeholder('number', String(value));
+  if (typeof value === 'bigint') return placeholder('bigint', value.toString(10));
+  if (typeof value === 'function' || typeof value === 'symbol') return placeholder(typeof value);
+  if (value === null || typeof value !== 'object') return value;
+
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : placeholder('date', 'invalid');
+  }
+
+  const objectValue = value as object;
+  if (seen.has(objectValue)) return placeholder('circular');
+  seen.add(objectValue);
+
+  // Blob and File carry bytes that a synchronous hash cannot read, so their stable
+  // metadata stands in for them. Hash the actual bytes with sha256Blob when that matters.
+  if (isFileValue(objectValue)) {
+    return {
+      [placeholder('file')]: {
+        name: objectValue.name,
+        size: objectValue.size,
+        type: objectValue.type,
+        lastModified: objectValue.lastModified,
+      },
+    };
+  }
+  if (isBlobValue(objectValue)) {
+    return { [placeholder('blob')]: { size: objectValue.size, type: objectValue.type } };
+  }
+
+  if (objectValue instanceof Map) {
+    return {
+      [placeholder('map')]: [...objectValue.entries()].map(entry => substituteUnsupported(entry, seen)),
+    };
+  }
+  if (objectValue instanceof Set) {
+    return { [placeholder('set')]: [...objectValue].map(entry => substituteUnsupported(entry, seen)) };
+  }
+
+  if (Array.isArray(objectValue)) {
+    // `Array.prototype.map` skips holes and copies them into its result, which would leave
+    // the array sparse and rejected again, so the indices are walked explicitly.
+    const entries: unknown[] = [];
+    for (let index = 0; index < objectValue.length; index++) {
+      entries.push(
+        Object.hasOwn(objectValue, index)
+          ? substituteUnsupported((objectValue as unknown[])[index], seen)
+          : placeholder('hole'),
+      );
+    }
+    return entries;
+  }
+
+  const record: Record<string, unknown> = {};
+  for (const key of Object.keys(objectValue)) {
+    const descriptor = Object.getOwnPropertyDescriptor(objectValue, key);
+    // An accessor is never invoked; reading it during a hash would run user code.
+    record[key] = descriptor && 'value' in descriptor
+      ? substituteUnsupported(descriptor.value, seen)
+      : placeholder('accessor');
+  }
+  return record;
+};
+
+const digest32 = (serialized: string): string => {
   let result = 0;
   for (let index = 0; index < serialized.length; index++) {
     result = (result << 5) - result + serialized.charCodeAt(index);
@@ -317,11 +397,34 @@ export const hash32 = (value: unknown): string => {
 };
 
 /**
+ * Produces the library's legacy 32-bit string hash. Total: it returns a key for any value.
+ *
+ * A value inside the strict JSON domain is hashed through {@link stableStringify} and keeps
+ * the key it has always had. Anything that domain rejects — `undefined`, non-finite numbers,
+ * `bigint`, functions, symbols, sparse arrays, accessors, class instances, `Map`/`Set`,
+ * `Blob`/`File`, cycles — is hashed from a copy in which each rejected value is replaced by
+ * its own namespaced placeholder, so those inputs still hash and still differ from one another.
+ *
+ * Totality is deliberate: this is a bucket key for runtime data, not a serialization. Callers
+ * that need the strict domain enforced should call {@link stableStringify} or
+ * {@link canonicalStringify} directly, both of which still reject.
+ *
+ * This hash is non-cryptographic, collision-prone, and unsuitable for signatures,
+ * authentication, authorization, or untrusted persistent cache identities.
+ */
+export const hash32 = (value: unknown): string => {
+  try {
+    return digest32(stableStringify(value));
+  } catch {
+    return digest32(stableStringify(substituteUnsupported(value, new WeakSet<object>())));
+  }
+};
+
+/**
  * Ambiguous compatibility name for {@link hash32}; behavior is unchanged for the
  * previously supported JSON-compatible domain.
  *
- * @deprecated Use {@link hash32}. Migration risk: unsupported values now throw
- * deterministically instead of colliding or violating the declared return type.
+ * @deprecated Use {@link hash32}.
  */
 export const hash = hash32;
 

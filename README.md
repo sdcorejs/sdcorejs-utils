@@ -286,9 +286,13 @@ negative zero, `BigInt`, `Date` (including one holding `NaN`), `RegExp`, `Map`, 
 `ArrayBuffer`, typed arrays, and sparse-array holes. It rejects functions, symbols, Blob/File metadata-only encoding,
 arbitrary class instances, accessors, and cycles.
 
-`hash32` is a fast, collision-prone, non-cryptographic compatibility hash. It is not
-suitable for signatures, authentication, or persistent identity derived from untrusted
-input. `sha256Canonical` hashes the canonical UTF-8 representation and returns lowercase
+`hash32` is a fast, collision-prone, non-cryptographic compatibility hash. It is total: a
+value inside the strict JSON domain keeps the key it has always had, and anything that
+domain rejects is hashed from a copy in which each rejected value carries its own
+namespaced placeholder, so those inputs still hash and still differ from one another. Call
+`stableStringify` or `canonicalStringify` directly when you want the strict domain enforced.
+`hash32` is not suitable for signatures, authentication, or persistent identity derived from
+untrusted input. `sha256Canonical` hashes the canonical UTF-8 representation and returns lowercase
 hex. `sha256Blob` hashes actual Blob/File bytes.
 
 ```ts
