@@ -558,3 +558,62 @@ describe('DateUtilities explicit arithmetic contracts', () => {
     expect(DateUtilities.timeDifference('2025-01-02T00:00:00', '2025-01-01T00:00:00')).toBe('in 1 day');
   });
 });
+
+// ─── backend precision in the legacy helpers ─────────────────────────────────
+//
+// Java/Postgres backends serialise instants with micro- or nanosecond fractions and
+// Jackson's StdDateFormat writes offsets without a colon. 1.1.x formatted these through
+// Date.parse; 1.2.0–1.2.2 rejected them, so every such table cell rendered as empty.
+
+describe('DateUtilities legacy helpers with backend date precision', () => {
+  const epoch = (value: unknown) => DateUtilities.addMilliseconds(value, 0)?.getTime();
+  const millis = Date.parse('2026-07-09T08:49:29.851Z');
+
+  it('formats an instant carrying microseconds or nanoseconds like its millisecond value', () => {
+    const expected = DateUtilities.toFormat('2026-07-09T08:49:29.851Z', 'yyyy-MM-dd HH:mm:ss');
+    expect(expected).not.toBe('');
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.851409Z', 'yyyy-MM-dd HH:mm:ss')).toBe(expected);
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.851409123Z', 'yyyy-MM-dd HH:mm:ss')).toBe(expected);
+    expect(DateUtilities.isDate('2026-07-09T08:49:29.851409Z')).toBe(true);
+  });
+
+  it('truncates the fraction to milliseconds instead of rounding it', () => {
+    expect(epoch('2026-07-09T08:49:29.851409Z')).toBe(millis);
+    expect(epoch('2026-07-09T08:49:29.851999999Z')).toBe(millis);
+    expect(epoch('2026-07-09T08:49:59.999999Z')).toBe(Date.parse('2026-07-09T08:49:59.999Z'));
+  });
+
+  it('pads a one- or two-digit fraction to milliseconds', () => {
+    expect(epoch('2026-07-09T08:49:29.8Z')).toBe(Date.parse('2026-07-09T08:49:29.800Z'));
+    expect(epoch('2026-07-09T08:49:29.85Z')).toBe(Date.parse('2026-07-09T08:49:29.850Z'));
+  });
+
+  it('applies numeric offsets with or without a colon', () => {
+    expect(epoch('2026-07-09T15:49:29.851409+07:00')).toBe(millis);
+    expect(epoch('2026-07-09T15:49:29.851+0700')).toBe(millis);
+    expect(epoch('2026-07-09T03:49:29.851-0500')).toBe(millis);
+    expect(epoch('2026-07-09T15:49+0700')).toBe(Date.parse('2026-07-09T08:49:00.000Z'));
+  });
+
+  it('keeps a local date-time with a sub-millisecond fraction on the local wall clock', () => {
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.851409', 'HH:mm:ss')).toBe('08:49:29');
+    expect(DateUtilities.toFormat('2026-07-09 08:49:29.851409123', 'yyyy-MM-dd HH:mm:ss')).toBe('2026-07-09 08:49:29');
+    expect(DateUtilities.addMilliseconds('2026-07-09T08:49:29.851409', 0)?.getMilliseconds()).toBe(851);
+  });
+
+  it('still rejects malformed precision, impossible offsets and impossible calendar values', () => {
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.1234567890Z', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.Z', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.toFormat('2026-07-09T08:49.851Z', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.851409+2400', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.toFormat('2026-07-09T08:49:29.851409+07', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.toFormat('2026-02-30T08:49:29.851409Z', 'yyyy-MM-dd')).toBe('');
+    expect(DateUtilities.isDate('2026-07-09T24:00:00.000001Z')).toBe(false);
+  });
+
+  it('leaves the strict parseInstant contract at millisecond precision with a colon offset', () => {
+    expect(DateUtilities.isValidInstant('2026-07-09T08:49:29.851409Z')).toBe(false);
+    expect(DateUtilities.isValidInstant('2026-07-09T15:49:29.851+0700')).toBe(false);
+    expect(DateUtilities.isValidInstant('2026-07-09T08:49:29.851Z')).toBe(true);
+  });
+});

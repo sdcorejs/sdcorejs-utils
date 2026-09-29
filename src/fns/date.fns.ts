@@ -193,29 +193,49 @@ export const isValidInstant = (value: unknown): boolean => {
   }
 };
 
+// Backend instants often carry micro- or nanosecond fractions (Java `Instant`, Postgres) or a
+// colon-less offset (Jackson's `StdDateFormat` writes `+0000`). 1.1.x accepted both through
+// `Date.parse`, so the legacy helpers keep doing so. `parseInstant` stays strict.
+const LEGACY_INSTANT_PATTERN = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/** Fraction digits as whole milliseconds, truncated like `Date.parse` and Java's `toEpochMilli`. */
+const fractionToMilliseconds = (fraction: string): string => fraction.slice(0, 3).padEnd(3, '0');
+
+/** Rewrites a legacy instant into the millisecond, colon-offset form `parseInstant` accepts. */
+const normalizeLegacyInstant = (value: string): string | undefined => {
+  const match = LEGACY_INSTANT_PATTERN.exec(value);
+  if (!match) return undefined;
+  const [, dateTime, second, fraction, zone] = match;
+  const milliseconds = fraction === undefined ? '' : `.${fractionToMilliseconds(fraction)}`;
+  const seconds = second === undefined ? '' : `:${second}${milliseconds}`;
+  const offset = zone === 'Z' || zone.includes(':') ? zone : `${zone.slice(0, 3)}:${zone.slice(3)}`;
+  return `${dateTime}${seconds}${offset}`;
+};
+
 const parseLegacyString = (value: string): Date => {
-  if (INSTANT_PATTERN.test(value)) return parseInstant(value);
+  const instant = normalizeLegacyInstant(value);
+  if (instant !== undefined) return parseInstant(instant);
 
   let match = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})$/.exec(value);
   if (match) return makeLocalDate(Number(match[1]), Number(match[3]), Number(match[4]));
   match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})$/.exec(value);
   if (match) return makeLocalDate(Number(match[4]), Number(match[1]), Number(match[3]));
 
-  match = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(value);
+  match = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/.exec(value);
   if (match) {
-    const [, year, , month, day, hour, minute, second = '0', millisecond = '0'] = match;
+    const [, year, , month, day, hour, minute, second = '0', fraction = '0'] = match;
     if (!isValidDateParts(+year, +month, +day) || !isValidTimeParts(+hour, +minute, +second)) {
       throw new DateParseError('Invalid local date-time');
     }
-    return makeLocalDate(+year, +month, +day, +hour, +minute, +second, +millisecond.padEnd(3, '0'));
+    return makeLocalDate(+year, +month, +day, +hour, +minute, +second, +fractionToMilliseconds(fraction));
   }
-  match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(value);
+  match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/.exec(value);
   if (match) {
-    const [, month, , day, year, hour, minute, second = '0', millisecond = '0'] = match;
+    const [, month, , day, year, hour, minute, second = '0', fraction = '0'] = match;
     if (!isValidDateParts(+year, +month, +day) || !isValidTimeParts(+hour, +minute, +second)) {
       throw new DateParseError('Invalid local date-time');
     }
-    return makeLocalDate(+year, +month, +day, +hour, +minute, +second, +millisecond.padEnd(3, '0'));
+    return makeLocalDate(+year, +month, +day, +hour, +minute, +second, +fractionToMilliseconds(fraction));
   }
   throw new DateParseError('Unsupported date string');
 };
