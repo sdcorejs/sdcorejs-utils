@@ -91,6 +91,12 @@ UTC midnight. Strict parsers reject overflow dates and invalid times with
 last valid target-month day by default; choose `overflow: 'balance'` for JavaScript's
 rollover behavior or `overflow: 'reject'` to fail the operation.
 
+From 1.2.3 the legacy helpers (`toFormat`, `isDate`, `add*`, `begin`/`end`, the difference helpers)
+accept a fraction of up to nine digits, truncated to milliseconds, and a `±HHmm` offset again, as
+1.1.x did. 1.2.0–1.2.2 rejected them, so `toFormat` returned `""` for common backend timestamps
+such as `2026-07-09T08:49:29.851409Z`. `parseInstant` still accepts only millisecond precision with
+a `±HH:mm` offset.
+
 `addMilliseconds` adds exact elapsed milliseconds through the instant timestamp. The
 misspelled `addMiliseconds` wrapper retains its legacy local-clock setter behavior;
 switching names can therefore intentionally change a result that crosses a DST offset

@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.3
+
+### Patch Changes
+
+- Restore the 1.1.x date inputs that backends commonly send to the legacy date helpers.
+
+  Since 1.2.0, `toFormat`, `isDate`, `begin`/`end`, the `add*` helpers and the difference helpers
+  rejected an ISO instant with more than three fraction digits (`2026-07-09T08:49:29.851409Z`,
+  the default for Java `Instant` and Postgres timestamps) and an offset without a colon
+  (`+0700`, written by Jackson's `StdDateFormat`). `toFormat` returned `""` for these values, so
+  every such value rendered as empty in the UI of any caller that formats backend dates. Local
+  date-times with a sub-millisecond fraction were rejected the same way.
+
+  These helpers now accept one to nine fraction digits and a `±HHmm` offset again. The fraction
+  is truncated to whole milliseconds, not rounded, which matches what `Date.parse` did in 1.1.x
+  and what Java's `toEpochMilli` does. Malformed fractions, out-of-range offsets and impossible
+  calendar values are still rejected.
+
+  `parseInstant` and `isValidInstant` are unchanged: they still require millisecond precision and
+  a `±HH:mm` offset, so they keep signalling input that a `Date` cannot represent exactly.
+
 ## 1.2.2
 
 ### Patch Changes

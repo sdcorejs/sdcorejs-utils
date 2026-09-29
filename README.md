@@ -312,6 +312,9 @@ Use explicit APIs to separate local calendar dates, local date-times, and instan
 - `parseLocalDateStrict` validates a calendar date without a UTC date-only shift.
 - `parseLocalDateTimeStrict` validates a local wall-clock value.
 - `parseInstant` accepts ISO instants with `Z` or an explicit offset.
+- The legacy helpers (`toFormat`, `isDate`, `add*`, `begin`/`end`, …) also accept the backend
+  forms `parseInstant` rejects: up to nine fraction digits, truncated to milliseconds, and a
+  `±HHmm` offset (`2026-07-09T08:49:29.851409Z`, `2026-07-09T15:49:29.851+0700`).
 - `calendarDayDifference` compares calendar days and is stable across DST.
 - `elapsedDayDifference` measures elapsed 24-hour units.
 - `completedAge` and `completedYearDifference` return completed calendar years; a
