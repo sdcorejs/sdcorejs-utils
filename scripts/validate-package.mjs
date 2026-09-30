@@ -343,13 +343,39 @@ const { firstValueFrom, map, of } = require('rxjs');
   await writeFile(
     join(typesRoot, 'consumer.mts'),
     `import { normalizeAsync, resolveMaybeAsync, type MaybeAsync, type SubscribableLike } from '@sdcorejs/utils';
-import { map, of } from 'rxjs';
+import { BehaviorSubject, map, of, Subject } from 'rxjs';
 
 const observable = of(42);
 const maybe: MaybeAsync<number> = observable;
 const structural: SubscribableLike<number> = observable;
 const piped = normalizeAsync(observable).pipe(map(value => value + 1));
 void [resolveMaybeAsync(maybe), structural, piped];
+
+// An Observable of a narrower type must fit a wider MaybeAsync/SubscribableLike slot, as
+// RxJS Observable<T> did in 1.1.x: a narrower primitive, a subtype, one union member.
+interface Base { id: string }
+interface Sub extends Base { tenant: string }
+type Tagged = { kind: 'a' } | { kind: 'b'; label: string };
+const narrower: MaybeAsync<string | null | undefined> = of('token');
+const narrowerFactory: () => MaybeAsync<string | undefined | null> = () => of('token');
+const subtype: MaybeAsync<Base> = new BehaviorSubject<Sub>({ id: '1', tenant: 't' });
+const unionMember: MaybeAsync<Tagged> = of({ kind: 'b' as const, label: 'x' });
+const subject: SubscribableLike<Base> = new Subject<Sub>();
+void [narrower, narrowerFactory, subtype, unionMember, subject];
+
+// The structural contract keeps every call form, and 1.2.0-style implementations that
+// also accept null still satisfy it.
+const wrapped = normalizeAsync(Promise.resolve(1));
+wrapped.subscribe(value => void value);
+wrapped.subscribe({ next: value => void value, error: reason => void reason, complete: () => undefined });
+wrapped.subscribe(value => void value, reason => void reason, () => undefined);
+const handWritten: SubscribableLike<number> = {
+  subscribe(observerOrNext?: Partial<{ next(value: number): void }> | ((value: number) => void) | null) {
+    void observerOrNext;
+    return () => undefined;
+  },
+};
+void handWritten;
 `,
   );
   await writeFile(
@@ -362,6 +388,12 @@ const maybe: root.MaybeAsync<number> = observable;
 const structural: root.SubscribableLike<number> = observable;
 const piped = root.normalizeAsync(observable).pipe(rxjs.map(value => value + 1));
 void [root.resolveMaybeAsync(maybe), structural, piped];
+
+interface Base { id: string }
+interface Sub extends Base { tenant: string }
+const narrower: root.MaybeAsync<string | null | undefined> = rxjs.of('token');
+const subtype: root.MaybeAsync<Base> = new rxjs.BehaviorSubject<Sub>({ id: '1', tenant: 't' });
+void [narrower, subtype];
 `,
   );
   await writeJson(join(typesRoot, 'tsconfig.json'), {

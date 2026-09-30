@@ -25,10 +25,17 @@ export type SubscriptionTeardownLike = SubscriptionLike | (() => void) | void;
  * Dependency-free structural observable contract. RxJS Observables and other
  * libraries with compatible `subscribe` overloads can be supplied without adding
  * RxJS to this package's runtime or declarations.
+ *
+ * The first parameter deliberately excludes `null`. RxJS's single-argument
+ * `subscribe(observerOrNext?)` overload does not accept `null`, and a `null` here
+ * made an Observable of a narrower type (`Observable<string>` for
+ * `string | null | undefined`, an Observable of a subtype or of one union member)
+ * unassignable to this contract, which broke `MaybeAsync` slots that accepted it
+ * under 1.1.x. Implementations may still accept `null`.
  */
 export interface SubscribableLike<T> {
   subscribe(
-    observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void) | null,
+    observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void),
     error?: (error: unknown) => void,
     complete?: () => void,
   ): SubscriptionTeardownLike;

@@ -190,6 +190,12 @@ RxJS is no longer a peer or runtime dependency. `MaybeAsync<T>` accepts a value,
 first emission, cleans up the subscription, propagates errors, and rejects empty
 completion with `EmptySubscribableError`.
 
+From 1.2.4 an RxJS Observable of a narrower type fits a wider slot again, as it did in 1.1.x:
+`Observable<string>` for `MaybeAsync<string | null | undefined>`, or an Observable of a subtype or of one
+union member. 1.2.0-1.2.3 rejected these because `SubscribableLike.subscribe` accepted `null` as its
+first argument, which RxJS's single-argument overload does not. Passing a literal `null` to
+`subscribe` on a `SubscribableLike` value is now a type error; pass `undefined` or omit it.
+
 `normalizeAsync` remains as a deprecated alias for `normalizeSubscribable`, but its
 declared result for plain values and promises is no longer an RxJS `Observable`. Code
 that calls RxJS-only methods such as `.pipe()` on those inputs must normalize in the

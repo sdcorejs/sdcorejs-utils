@@ -133,7 +133,8 @@ randomness or unauthenticated encryption.
 
 RxJS is not installed or imported by this package. `MaybeAsync` uses a structural
 `SubscribableLike<T>` contract, so an RxJS Observable remains compatible when an
-application already uses RxJS.
+application already uses RxJS, including an Observable of a narrower type (for example
+`Observable<string>` for `MaybeAsync<string | null | undefined>`).
 
 ## Exports
 
