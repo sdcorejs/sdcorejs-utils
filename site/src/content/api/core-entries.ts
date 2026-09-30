@@ -740,11 +740,11 @@ const asyncSpecs = [
     kind: 'interface',
     pageId: 'api-validation-async',
     importPath: MODELS,
-    signature: 'interface SubscribableLike<T> { subscribe(observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void) | null, error?: (error: unknown) => void, complete?: () => void): SubscriptionTeardownLike }',
+    signature: 'interface SubscribableLike<T> { subscribe(observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void), error?: (error: unknown) => void, complete?: () => void): SubscriptionTeardownLike }',
     en: 'Dependency-free structural observable contract supporting observer and callback subscribe forms.',
     vi: 'Contract observable cấu trúc không phụ thuộc thư viện, hỗ trợ cả dạng observer và callback của subscribe.',
     properties: [
-      { name: 'subscribe', type: '(observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void) | null, error?: (error: unknown) => void, complete?: () => void) => SubscriptionTeardownLike', en: 'Subscribes with an observer or callbacks and returns optional cleanup.', vi: 'Đăng ký bằng observer hoặc callback và trả về cleanup tùy chọn.' },
+      { name: 'subscribe', type: '(observerOrNext?: Partial<ObserverLike<T>> | ((value: T) => void), error?: (error: unknown) => void, complete?: () => void) => SubscriptionTeardownLike', en: 'Subscribes with an observer or callbacks and returns optional cleanup.', vi: 'Đăng ký bằng observer hoặc callback và trả về cleanup tùy chọn.' },
     ],
     returnsEn: 'A subscribable that may return a cleanup callback, subscription handle, or void.',
     returnsVi: 'Subscribable có thể trả callback cleanup, handle subscription hoặc void.',

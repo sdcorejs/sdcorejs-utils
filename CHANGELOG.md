@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.4
+
+### Patch Changes
+
+- Accept an RxJS Observable of a narrower type as `MaybeAsync<T>` / `SubscribableLike<T>` again.
+
+  In 1.1.x, `MaybeAsync<T>` included RxJS `Observable<T>`, so an `Observable<string>` fit a
+  `MaybeAsync<string | null | undefined>` slot, and an Observable of a subtype or of one union
+  member fit a slot of the wider type. Since 1.2.0 the structural `SubscribableLike<T>` typed the
+  first `subscribe` parameter as `... | null`. RxJS's single-argument `subscribe(observerOrNext?)`
+  overload does not accept `null`, so TypeScript rejected every such Observable, and code that
+  compiled against 1.1.x stopped compiling. Two examples are a token getter returning
+  `Observable<string>` and an auth source that is a `BehaviorSubject` of a user subtype.
+
+  The first parameter of `SubscribableLike.subscribe` no longer includes `null`. Every call form
+  still type-checks: an observer object, a `next` callback, or `(next, error, complete)`. Hand-written
+  implementations whose parameter also accepts `null` still satisfy the interface, and the
+  runtime behaviour is unchanged. The only thing now rejected at compile time is passing a literal
+  `null` as the first argument when calling `subscribe` on a value typed `SubscribableLike`; pass
+  `undefined` or omit it instead. RxJS deprecated that form too.
+
 ## 1.2.3
 
 ### Patch Changes
