@@ -529,6 +529,19 @@ when the application can recover, or catch the base class at a package boundary 
 consistent reporting. The public error brand preserves `instanceof` checks across
 independently bundled public entry points.
 
+Each error class declares a stable `static readonly errorName` equal to its export name.
+`error.name` and the cross-entry brand use it instead of `constructor.name`, so both survive
+application bundlers that rename or minify class bindings. A custom subclass must declare its
+own `errorName`; constructing a subclass without one throws a `TypeError`:
+
+```ts
+import { ValidationError } from '@sdcorejs/utils/errors';
+
+class OrderSyncError extends ValidationError {
+  static override readonly errorName: string = 'OrderSyncError';
+}
+```
+
 | Error family | Errors | Typical boundary |
 | --- | --- | --- |
 | `SecurityError` | `UnsafeObjectKeyError`, `UnsafePropertyPathError`, `WebCryptoUnavailableError`, `SecureRandomUnavailableError`, `EncryptionAuthenticationError`, `UnsafeUrlProtocolError` | Rejected unsafe input, unavailable secure capabilities, or failed authentication. |

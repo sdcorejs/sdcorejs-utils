@@ -501,6 +501,65 @@ if (typeof root.DateUtilities !== 'object' ||
   assert.equal(/from\s*["']node:/.test(bundleContent), false, 'browser bundle contains a Node builtin import');
   runNode([browserBundle], { cwd: consumerRoot });
   console.log('[package-validation] browser-target bundle and import passed');
+
+  await validateBundledErrorIdentity(consumerRoot);
+}
+
+/**
+ * An application bundler hoists every entry into one scope and renames the duplicated error
+ * class bindings (`UnsafePropertyPathError2`, or short names when minifying). `instanceof` and
+ * `name` across public entry points must still hold, so an error thrown by `fns` is checked
+ * against the classes exported by `errors` and the root entry in both bundle flavours.
+ */
+async function validateBundledErrorIdentity(consumerRoot) {
+  const identityEntry = join(consumerRoot, 'error-identity-entry.mjs');
+  await writeFile(
+    identityEntry,
+    `import * as root from '@sdcorejs/utils';
+import * as fns from '@sdcorejs/utils/fns';
+import * as errors from '@sdcorejs/utils/errors';
+
+let thrown;
+try {
+  fns.Utilities.getNestedValue({}, 'a b');
+} catch (error) {
+  thrown = error;
+}
+const checks = {
+  thrown: thrown !== undefined,
+  errorsClass: thrown instanceof errors.UnsafePropertyPathError,
+  errorsParent: thrown instanceof errors.SecurityError,
+  errorsBase: thrown instanceof errors.SdcoreUtilsError,
+  rootClass: thrown instanceof root.UnsafePropertyPathError,
+  unrelated: thrown instanceof errors.ValidationError,
+  name: thrown?.name,
+};
+const failed = Object.entries({ ...checks, unrelated: !checks.unrelated, name: checks.name === 'UnsafePropertyPathError' })
+  .filter(([, passed]) => passed !== true)
+  .map(([check]) => check);
+if (failed.length > 0) {
+  throw new Error('Bundled cross-entry error identity failed: ' + failed.join(', ') + ' ' + JSON.stringify(checks));
+}
+`,
+  );
+
+  for (const minify of [false, true]) {
+    const identityBundle = join(consumerRoot, `error-identity-bundle${minify ? '.min' : ''}.mjs`);
+    await build({
+      absWorkingDir: consumerRoot,
+      bundle: true,
+      conditions: ['browser', 'import', 'default'],
+      entryPoints: [identityEntry],
+      format: 'esm',
+      logLevel: 'warning',
+      minify,
+      outfile: identityBundle,
+      platform: 'browser',
+      target: ['es2022'],
+    });
+    runNode([identityBundle], { cwd: consumerRoot });
+  }
+  console.log('[package-validation] bundled cross-entry error identity passed (minify off/on)');
 }
 
 async function validateExamples(consumerRoot) {
