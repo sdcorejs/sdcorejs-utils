@@ -45,6 +45,7 @@ and security guidance.
 - [Runtime support](#runtime-support)
 - [Exports](#exports)
 - [API overview](#api-overview)
+- [String masking for display](#string-masking-for-display)
 - [Encryption and legacy obfuscation](#encryption-and-legacy-obfuscation)
 - [Safe object and property-path handling](#safe-object-and-property-path-handling)
 - [Serialization and hashing](#serialization-and-hashing)
@@ -126,6 +127,7 @@ running ES2022 output.
 | AES-GCM, secure UUID generation, and SHA-256 | Web Crypto through `globalThis.crypto` |
 | File picker and downloads | Browser DOM, `File`, `Blob`, and `URL` APIs |
 | Clipboard writes | `navigator.clipboard` plus the browser's secure-context, permission, and user-gesture policies |
+| String masking with positive keep counts | `Intl.Segmenter` with grapheme granularity for nonempty strings |
 
 Missing Web Crypto support fails explicitly with `WebCryptoUnavailableError` or
 `SecureRandomUnavailableError`; security-sensitive operations never fall back to weak
@@ -207,6 +209,49 @@ public surface rather than a replacement for the full API reference.
 Prefer focused subpath imports when they make an application's dependency boundary
 clear. Prefer the root entry point when convenience and discoverability matter more;
 both forms are supported and tree-shakeable.
+
+## String masking for display
+
+```ts
+import { StringUtilities, type StringMaskOptions } from '@sdcorejs/utils/fns';
+
+const options: StringMaskOptions = { keepEnd: 2 };
+StringUtilities.mask('12345', options); // '****45'
+StringUtilities.mask('123', options);   // '****23'
+StringUtilities.mask('12', options);    // '****'
+StringUtilities.mask('1', options);     // '****'
+StringUtilities.mask('0912345678', { keepStart: 3, keepEnd: 2 }); // '091****78'
+StringUtilities.mask('abc', { maskLength: 2 }); // '**'
+StringUtilities.mask('');        // ''
+StringUtilities.mask(null);      // null
+StringUtilities.mask(undefined); // undefined
+```
+
+`keepStart` and `keepEnd` default to `0`; `maskLength` defaults to `4`. The mask
+character is always `*`, and its count does not depend on the hidden text length.
+If the keep counts cover or overlap the entire nonempty string, the result contains
+only the asterisks. Input text is never trimmed, normalized, or coerced, and options
+are not mutated. Both the helper and `StringMaskOptions` are available through the
+root import as well as `/fns`.
+
+Null and undefined return immediately, preserving their value and TypeScript type,
+without reading or validating options. Other inputs must be primitive strings.
+For strings (including the empty string), options must be an object: omitted or
+undefined fields use defaults, while null fields and invalid values throw
+`ValidationError`. Keep counts must be nonnegative safe integers. `maskLength`
+must be a positive integer no greater than **1024**, a display-oriented limit that
+bounds asterisk allocation. Invalid values are rejected rather than clamped.
+
+Keep counts refer to **grapheme clusters**, using `Intl.Segmenter`, so surrogate
+pairs, combining marks, ZWJ emoji, and flags are kept whole. Segmentation follows
+the Unicode data of the runtime. Nonempty strings with a positive keep count
+require `Intl.Segmenter`; its absence throws `ValidationError`. Fully masked and
+empty strings do not require it. Use a runtime with this capability or install a
+polyfill in your application for older browsers.
+
+This is a display helper. It provides no encryption or security boundary and does
+not automatically sanitize logs or JSON. Retained text remains visible; handle
+sensitive data separately at the application boundary.
 
 ## Encryption and legacy obfuscation
 

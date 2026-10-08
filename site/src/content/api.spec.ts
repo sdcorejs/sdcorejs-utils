@@ -18,8 +18,8 @@ describe('complete bilingual API reference', () => {
   it('aligns runtime entries with the machine-readable public inventories', () => {
     const entrySymbols = API_ENTRIES.map(entry => entry.symbol);
     const documentedImports: Readonly<Record<string, string>> = DOCUMENTED_IMPORT_PATHS;
-    expect(API_ENTRIES).toHaveLength(157);
-    expect(new Set(entrySymbols).size).toBe(157);
+    expect(API_ENTRIES).toHaveLength(158);
+    expect(new Set(entrySymbols).size).toBe(158);
     expect([...entrySymbols].sort()).toEqual([...DOCUMENTED_PUBLIC_SYMBOLS].sort());
     expect(Object.keys(DOCUMENTED_IMPORT_PATHS).sort()).toEqual([...DOCUMENTED_PUBLIC_SYMBOLS].sort());
 
@@ -85,8 +85,8 @@ describe('complete bilingual API reference', () => {
           .not.toBe('The value described by the signature.');
       }
     }
-    expect(actualCount).toBe(152);
-    expect(expectedCount).toBe(152);
+    expect(actualCount).toBe(153);
+    expect(expectedCount).toBe(153);
   });
 
   it('keeps example and typed-error references resolvable', () => {

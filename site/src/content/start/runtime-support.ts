@@ -33,6 +33,7 @@ export default createPageContent({
             [[localized(context.locale, { en: 'AES-GCM, secure UUID fallback, SHA-256', vi: 'AES-GCM, fallback UUID an toàn, SHA-256' })], [inlineCode('globalThis.crypto')]],
             [[localized(context.locale, { en: 'File picker and downloads', vi: 'Trình chọn file và tải xuống' })], [localized(context.locale, { en: 'DOM, File, Blob, and URL APIs', vi: 'API DOM, File, Blob và URL' })]],
             [[localized(context.locale, { en: 'Clipboard', vi: 'Clipboard' })], [inlineCode('navigator.clipboard')]],
+            [[inlineCode('StringUtilities.mask'), localized(context.locale, { en: ' with positive keep counts', vi: ' với số lượng giữ lớn hơn 0' })], [inlineCode('Intl.Segmenter'), localized(context.locale, { en: ' (grapheme granularity; nonempty strings only)', vi: ' (granularity grapheme; chỉ với chuỗi không rỗng)' })]],
           ],
         ),
       ],
