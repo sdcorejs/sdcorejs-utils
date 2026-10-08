@@ -61,6 +61,7 @@ const unsafeUrlProtocolError = errorSpec(
 );
 
 export const FUNCTION_A_DOCUMENTED_SYMBOLS = [
+  'StringMaskOptions',
   'TemplatePathOptions',
   'obfuscate',
   'deobfuscate',
@@ -142,6 +143,7 @@ export const FUNCTION_A_NAMESPACE_MEMBERS = {
     'REGEX_BASE64',
     'changeAliasLowerCase',
     'aliasIncludes',
+    'mask',
     'format',
     'templateToDisplay',
     'parseExpression',
@@ -203,6 +205,7 @@ export const FUNCTION_A_NAMESPACE_MEMBERS = {
 } as const;
 
 export const FUNCTION_A_IMPORT_PATHS = {
+  StringMaskOptions: FNS_IMPORT,
   TemplatePathOptions: FNS_IMPORT,
   obfuscate: FNS_IMPORT,
   deobfuscate: FNS_IMPORT,
@@ -449,6 +452,33 @@ const STRING_MEMBERS = [
     securityVi: ['Không dùng khớp alias mờ cho identifier xác thực hoặc phân quyền.'],
   }),
   createMember('StringUtilities', {
+    name: 'mask',
+    signature: 'mask<T extends string | null | undefined>(value: T, options?: StringMaskOptions): T extends string ? string : T',
+    en: 'Masks text for display using a fixed number of asterisks while preserving optional leading and trailing graphemes.',
+    vi: 'Che chuỗi để hiển thị bằng số dấu sao cố định, có thể giữ grapheme ở đầu và cuối.',
+    parameters: [
+      parameter('value', 'string | null | undefined', 'Text to display; null and undefined return immediately without reading options.', 'Chuỗi cần hiển thị; null và undefined trả nguyên ngay, không đọc options.'),
+      parameter('options', 'StringMaskOptions', 'keepStart and keepEnd default to 0; maskLength defaults to 4.', 'keepStart và keepEnd mặc định là 0; maskLength mặc định là 4.', { optional: true, defaultValue: '{}' }),
+    ],
+    returnsEn: 'A string for string input, or the original null/undefined with its type preserved. Empty text returns an empty string after option validation.',
+    returnsVi: 'Trả string cho input string, hoặc giữ nguyên giá trị và kiểu null/undefined. Chuỗi rỗng trả chuỗi rỗng sau khi kiểm tra options.',
+    throws: [errorSpec('ValidationError', 'Non-string/non-nullish input, invalid options, or missing Intl.Segmenter when keeping graphemes.', 'Input không phải string/nullish, options không hợp lệ, hoặc thiếu Intl.Segmenter khi giữ grapheme.')],
+    runtimeEn: [
+      'Keep counts must be nonnegative safe integers; maskLength must be an integer from 1 to 1024. No coercion, trimming, or mutation.',
+      'If keepStart + keepEnd covers the entire nonempty string, returns only the asterisks. Otherwise the asterisk count is independent of hidden text length.',
+      'Uses Intl.Segmenter with grapheme granularity when either keep count is positive; missing capability throws instead of splitting emoji or combining marks. Segmentation follows the runtime Unicode data.',
+      "mask('12345', { keepEnd: 2 }) = '****45'; mask('12', { keepEnd: 2 }) = '****'; mask('0912345678', { keepStart: 3, keepEnd: 2 }) = '091****78'.",
+    ],
+    runtimeVi: [
+      'Số lượng giữ phải là số nguyên an toàn không âm; maskLength phải là số nguyên từ 1 đến 1024. Không ép kiểu, trim hay mutate.',
+      'Nếu keepStart + keepEnd phủ toàn bộ chuỗi không rỗng, chỉ trả dấu sao. Trường hợp còn lại, số dấu sao không phụ thuộc độ dài phần bị che.',
+      'Dùng Intl.Segmenter với granularity grapheme khi số lượng giữ ở một trong hai đầu lớn hơn 0; thiếu capability sẽ báo lỗi thay vì cắt emoji hoặc dấu kết hợp. Phân đoạn theo dữ liệu Unicode của runtime.',
+      "mask('12345', { keepEnd: 2 }) = '****45'; mask('12', { keepEnd: 2 }) = '****'; mask('0912345678', { keepStart: 3, keepEnd: 2 }) = '091****78'.",
+    ],
+    securityEn: ['Display helper only: no encryption or security boundary, and no automatic sanitization of logs or JSON. Retained text remains visible. The 1024 cap bounds asterisk allocation.'],
+    securityVi: ['Chỉ hỗ trợ hiển thị: không mã hóa, không tạo ranh giới bảo mật, không tự làm sạch log hoặc JSON. Phần giữ lại vẫn hiển thị. Giới hạn 1024 chặn cấp phát dấu sao quá lớn.'],
+  }),
+  createMember('StringUtilities', {
     name: 'format',
     signature: 'format(template: string, ...arr: any[]): string',
     en: 'Replaces numbered placeholders such as {0} while treating replacement strings literally.',
@@ -573,6 +603,26 @@ const STRING_MEMBERS = [
 ];
 
 const stringEntries: readonly ApiEntry[] = [
+  createEntry({
+    symbol: 'StringMaskOptions',
+    kind: 'interface',
+    pageId: 'api-string',
+    importPath: FNS_IMPORT,
+    signature: 'interface StringMaskOptions { keepStart?: number; keepEnd?: number; maskLength?: number }',
+    en: 'Options for StringUtilities.mask; the mask character is always an asterisk.',
+    vi: 'Tùy chọn cho StringUtilities.mask; ký tự che luôn là dấu sao.',
+    parameters: [
+      parameter('keepStart', 'number', 'Leading graphemes to retain; a nonnegative safe integer.', 'Số grapheme đầu cần giữ; số nguyên an toàn không âm.', { optional: true, defaultValue: '0' }),
+      parameter('keepEnd', 'number', 'Trailing graphemes to retain; a nonnegative safe integer.', 'Số grapheme cuối cần giữ; số nguyên an toàn không âm.', { optional: true, defaultValue: '0' }),
+      parameter('maskLength', 'number', 'Asterisk count, an integer from 1 to 1024.', 'Số dấu sao, số nguyên từ 1 đến 1024.', { optional: true, defaultValue: '4' }),
+    ],
+    returnsEn: 'A compile-time options interface exported from the root and /fns.',
+    returnsVi: 'Interface tùy chọn tại compile time, export từ root và /fns.',
+    runtimeEn: ['Omitted/undefined fields use defaults; null fields, fractions, non-finite values, and invalid types throw ValidationError. Nullish input bypasses all option reads and validation.'],
+    runtimeVi: ['Field bỏ qua/undefined dùng mặc định; field null, số lẻ, giá trị không hữu hạn và sai kiểu báo ValidationError. Input nullish bỏ qua toàn bộ việc đọc và kiểm tra options.'],
+    securityEn: ['No maskChar option, automatic log/JSON sanitization, or encryption. The bounded mask length is intended for display.'],
+    securityVi: ['Không có tùy chọn maskChar, không tự làm sạch log/JSON hay mã hóa. Độ dài che có giới hạn phục vụ hiển thị.'],
+  }),
   createEntry({
     symbol: 'TemplatePathOptions',
     kind: 'type',

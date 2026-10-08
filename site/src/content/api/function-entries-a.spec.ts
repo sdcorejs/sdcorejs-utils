@@ -18,15 +18,15 @@ const canonicalExamples = new Set([
 ]);
 
 describe('function API partition A', () => {
-  it('documents exactly one entry for each of its 53 public /fns exports', () => {
+  it('documents exactly one entry for each of its 54 public /fns exports', () => {
     const documented = [...FUNCTION_A_DOCUMENTED_SYMBOLS].sort();
     const entries = FUNCTION_A_API_ENTRIES.map(entry => entry.symbol).sort();
 
-    expect(FUNCTION_A_DOCUMENTED_SYMBOLS).toHaveLength(53);
-    expect(new Set(FUNCTION_A_DOCUMENTED_SYMBOLS)).toHaveLength(53);
-    expect(FUNCTION_A_API_ENTRIES).toHaveLength(53);
+    expect(FUNCTION_A_DOCUMENTED_SYMBOLS).toHaveLength(54);
+    expect(new Set(FUNCTION_A_DOCUMENTED_SYMBOLS)).toHaveLength(54);
+    expect(FUNCTION_A_API_ENTRIES).toHaveLength(54);
     expect(entries).toEqual(documented);
-    expect(new Set(FUNCTION_A_API_ENTRIES.map(entry => entry.id))).toHaveLength(53);
+    expect(new Set(FUNCTION_A_API_ENTRIES.map(entry => entry.id))).toHaveLength(54);
   });
 
   it('pins every assigned symbol to the canonical /fns import path', () => {
@@ -39,9 +39,9 @@ describe('function API partition A', () => {
     expect(FUNCTION_A_API_ENTRIES.every(entry => entry.importPath === '@sdcorejs/utils/fns')).toBe(true);
   });
 
-  it('documents all 87 public utility namespace members without extras', () => {
+  it('documents all 88 public utility namespace members without extras', () => {
     const namespaces = Object.entries(FUNCTION_A_NAMESPACE_MEMBERS);
-    expect(namespaces.reduce((count, [, members]) => count + members.length, 0)).toBe(87);
+    expect(namespaces.reduce((count, [, members]) => count + members.length, 0)).toBe(88);
 
     for (const [namespace, expectedMembers] of namespaces) {
       const entry = FUNCTION_A_API_ENTRIES.find(candidate => candidate.symbol === namespace);
@@ -100,5 +100,19 @@ describe('function API partition A', () => {
     expect(uploadOptions?.properties?.find(property => property.name === 'maxSizeInMb')?.description.en)
       .toContain('Positive finite');
     expect(uploadOptions?.runtimeNotes.en.join(' ')).toContain('before the picker opens');
+  });
+
+  it('documents mask defaults, nullish semantics, Unicode capability, and display limits', () => {
+    const stringEntry = FUNCTION_A_API_ENTRIES.find(entry => entry.symbol === 'StringUtilities');
+    const mask = stringEntry?.members?.find(member => member.name === 'mask');
+    const options = FUNCTION_A_API_ENTRIES.find(entry => entry.symbol === 'StringMaskOptions');
+    expect(mask?.signature).toContain('T extends string ? string : T');
+    expect(mask?.parameters.find(parameter => parameter.name === 'value')?.description.en).toContain('without reading options');
+    expect(mask?.runtimeNotes.en.join(' ')).toContain('Intl.Segmenter');
+    expect(mask?.runtimeNotes.en.join(' ')).toContain('1 to 1024');
+    expect(mask?.securityNotes.en.join(' ')).toContain('no automatic sanitization of logs or JSON');
+    expect(options?.properties?.map(property => [property.name, property.defaultValue])).toEqual([
+      ['keepStart', '0'], ['keepEnd', '0'], ['maskLength', '4'],
+    ]);
   });
 });

@@ -61,6 +61,89 @@ const changeAliasLowerCase = (alias: any) => {
 const aliasIncludes = (alias: any, searchText: any) =>
   changeAliasLowerCase(alias).includes(changeAliasLowerCase(searchText));
 
+/** Options for {@link StringUtilities.mask}. The mask character is always `*`. */
+export interface StringMaskOptions {
+  /** Leading grapheme clusters to keep; a nonnegative safe integer. Defaults to 0. */
+  keepStart?: number;
+  /** Trailing grapheme clusters to keep; a nonnegative safe integer. Defaults to 0. */
+  keepEnd?: number;
+  /** Fixed asterisk count; an integer from 1 to 1024. Defaults to 4. */
+  maskLength?: number;
+}
+
+const MAX_MASK_LENGTH = 1024;
+
+/**
+ * Masks text for display without trimming, coercing, normalizing, or mutating it.
+ * Null/undefined return immediately without reading options; their types are preserved.
+ * String inputs, including empty strings, validate options before returning.
+ * If the keep counts cover the entire nonempty string, returns only the asterisks.
+ * Otherwise the asterisk count is independent of the hidden text length.
+ *
+ * Positive keep counts on nonempty text require `Intl.Segmenter` for grapheme
+ * boundaries (including combining marks, ZWJ emoji, and flags). Segmentation follows
+ * the runtime Unicode data. Fully masked and empty strings do not require it.
+ * The 1024 asterisk limit bounds allocation for this display helper.
+ * This is not encryption or a security boundary and does not sanitize logs or JSON.
+ *
+ * @throws {ValidationError} For invalid input/options or missing `Intl.Segmenter`.
+ * @example StringUtilities.mask('12345', { keepEnd: 2 }); // '****45'
+ * @example StringUtilities.mask('12', { keepEnd: 2 }); // '****'
+ * @example StringUtilities.mask('0912345678', { keepStart: 3, keepEnd: 2 }); // '091****78'
+ * @example StringUtilities.mask(null); // null
+ */
+function mask<T extends string | null | undefined>(
+  value: T,
+  options?: StringMaskOptions,
+): T extends string ? string : T;
+function mask(
+  value: string | null | undefined,
+  options: StringMaskOptions = {},
+): string | null | undefined {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'string') throw new ValidationError('mask value must be a string, null, or undefined');
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new ValidationError('mask options must be an object');
+  }
+  const { keepStart = 0, keepEnd = 0, maskLength = 4 } = options;
+  if (!Number.isSafeInteger(keepStart) || keepStart < 0) {
+    throw new ValidationError('keepStart must be a nonnegative safe integer');
+  }
+  if (!Number.isSafeInteger(keepEnd) || keepEnd < 0) {
+    throw new ValidationError('keepEnd must be a nonnegative safe integer');
+  }
+  if (!Number.isSafeInteger(maskLength) || maskLength < 1 || maskLength > MAX_MASK_LENGTH) {
+    throw new ValidationError('maskLength must be an integer from 1 to 1024');
+  }
+  if (value === '') return '';
+  const masked = '*'.repeat(maskLength);
+  if (keepStart === 0 && keepEnd === 0) return masked;
+  if (typeof globalThis.Intl?.Segmenter !== 'function') {
+    throw new ValidationError('Intl.Segmenter is required to keep graphemes when masking');
+  }
+  const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(value);
+  let length = 0;
+  let prefixEnd = 0;
+  for (const segment of segments) {
+    if (length < keepStart) prefixEnd = segment.index + segment.segment.length;
+    length++;
+  }
+  // Compare by subtraction so two safe keep counts cannot overflow when added.
+  if (keepStart >= length || keepEnd >= length - keepStart) return masked;
+  let suffixStart = value.length;
+  if (keepEnd > 0) {
+    let position = 0;
+    for (const segment of segments) {
+      if (position === length - keepEnd) {
+        suffixStart = segment.index;
+        break;
+      }
+      position++;
+    }
+  }
+  return value.slice(0, prefixEnd) + masked + value.slice(suffixStart);
+}
+
 /** Formats numbered placeholders while treating replacement strings literally. */
 const format = (template: string, ...arr: any[]) =>
   template.replace(
@@ -391,7 +474,7 @@ export const StringUtilities = {
   REGEX_NUMBER, REGEX_INTEGER, REGEX_DECIMAL, REGEX_POSITIVE_NUMBER,
   REGEX_UUID, REGEX_CODE_16, REGEX_CODE_32, REGEX_HEX_COLOR, REGEX_BASE64,
   changeAliasLowerCase, aliasIncludes,
-  format, templateToDisplay, parseExpression,
+  mask, format, templateToDisplay, parseExpression,
   /** Reversibly obfuscates JSON using the legacy wire format; it is not a security control. */
   obfuscate,
   /** Decodes values produced by `obfuscate` or the legacy `encrypt` alias. */

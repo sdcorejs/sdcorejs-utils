@@ -255,6 +255,12 @@ import * as constants from '@sdcorejs/utils/constants';
 import * as fns from '@sdcorejs/utils/fns';
 import * as errors from '@sdcorejs/utils/errors';
 
+assert.equal(root.StringUtilities.mask('0912345678', { keepStart: 3, keepEnd: 2 }), '091****78');
+assert.equal(fns.StringUtilities.mask('12', { keepEnd: 2 }), '****');
+assert.equal(fns.StringUtilities.mask(null, { maskLength: Infinity }), null);
+assert.equal(root.StringUtilities.mask(undefined, null), undefined);
+assert.throws(() => fns.StringUtilities.mask('abc', { maskLength: Number.MAX_SAFE_INTEGER }), errors.ValidationError);
+
 assert.equal(typeof root.DateUtilities, 'object');
 assert.equal(typeof models.resolveMaybeAsync, 'function');
 assert.equal(typeof constants.EMPTY_STR, 'string');
@@ -273,6 +279,12 @@ const models = require('@sdcorejs/utils/models');
 const constants = require('@sdcorejs/utils/constants');
 const fns = require('@sdcorejs/utils/fns');
 const errors = require('@sdcorejs/utils/errors');
+
+assert.equal(root.StringUtilities.mask('0912345678', { keepStart: 3, keepEnd: 2 }), '091****78');
+assert.equal(fns.StringUtilities.mask('12', { keepEnd: 2 }), '****');
+assert.equal(fns.StringUtilities.mask(null, { maskLength: Infinity }), null);
+assert.equal(root.StringUtilities.mask(undefined, null), undefined);
+assert.throws(() => fns.StringUtilities.mask('abc', { maskLength: Number.MAX_SAFE_INTEGER }), errors.ValidationError);
 
 assert.equal(typeof root.DateUtilities, 'object');
 assert.equal(typeof models.resolveMaybeAsync, 'function');
@@ -415,6 +427,8 @@ async function validateTypeDeclarations(consumerRoot) {
     `import {
   DateUtilities,
   SdcoreUtilsError,
+  StringUtilities,
+  type StringMaskOptions,
   type DetectIncognitoOptions,
   type IncognitoDetectionResult,
   type PagingReq,
@@ -423,6 +437,7 @@ import type { PagingRes } from '@sdcorejs/utils/models';
 import { EMPTY_STR } from '@sdcorejs/utils/constants';
 import {
   ValidationUtilities,
+  type StringMaskOptions as FnsStringMaskOptions,
   type DetectIncognitoOptions as FnsDetectIncognitoOptions,
   type IncognitoDetectionResult as FnsIncognitoDetectionResult,
 } from '@sdcorejs/utils/fns';
@@ -431,6 +446,12 @@ import { UnsafeObjectKeyError } from '@sdcorejs/utils/errors';
 const request: PagingReq<{ id: number }> = { pageNumber: 0, pageSize: 20 };
 const response: PagingRes<{ id: number }> = { items: [{ id: 1 }], total: 1 };
 const error: SdcoreUtilsError = new UnsafeObjectKeyError('__proto__');
+const maskOptions: StringMaskOptions & FnsStringMaskOptions = { keepEnd: 2 };
+const masked: string = StringUtilities.mask('12345', maskOptions);
+const maskedNull: null = StringUtilities.mask(null);
+const maskedUndefined: undefined = StringUtilities.mask(undefined);
+const maskUnion = (value: string | null | undefined): string | null | undefined => StringUtilities.mask(value);
+void [masked, maskedNull, maskedUndefined, maskUnion];
 const incognitoOptions: DetectIncognitoOptions & FnsDetectIncognitoOptions = { timeoutMs: 100 };
 const incognitoResult: IncognitoDetectionResult & FnsIncognitoDetectionResult = {
   browserName: 'test',
@@ -450,6 +471,12 @@ import errors = require('@sdcorejs/utils/errors');
 const request: models.PagingReq<{ id: number }> = { pageNumber: 0, pageSize: 20 };
 const response: models.PagingRes<{ id: number }> = { items: [{ id: 1 }], total: 1 };
 const error: root.SdcoreUtilsError = new errors.UnsafeObjectKeyError('__proto__');
+const maskOptions: root.StringMaskOptions & fns.StringMaskOptions = { keepEnd: 2 };
+const masked: string = fns.StringUtilities.mask('12345', maskOptions);
+const maskedNull: null = root.StringUtilities.mask(null);
+const maskedUndefined: undefined = fns.StringUtilities.mask(undefined);
+const maskUnion = (value: string | null | undefined): string | null | undefined => root.StringUtilities.mask(value);
+void [masked, maskedNull, maskedUndefined, maskUnion];
 const incognitoOptions: root.DetectIncognitoOptions & fns.DetectIncognitoOptions = { timeoutMs: 100 };
 const incognitoResult: root.IncognitoDetectionResult & fns.IncognitoDetectionResult = {
   browserName: 'test',
