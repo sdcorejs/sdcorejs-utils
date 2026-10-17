@@ -38,6 +38,31 @@ export default createPageContent({
             vi: 'Giữ ngày sinh, ngày thanh toán và giá trị lịch khác ở dạng local trừ khi domain gán rõ múi giờ và thời gian trong ngày.',
           })),
         ),
+        paragraph(localized(context.locale, {
+          en: 'By default the helpers use the host local zone, so an instant can show a different day on another machine. Pass an IANA zone through TimeZoneOptions when every user must see the same wall clock.',
+          vi: 'Mặc định các helper dùng múi giờ local của máy, nên một instant có thể hiện ngày khác trên máy khác. Truyền múi giờ IANA qua TimeZoneOptions khi mọi người dùng phải thấy cùng giờ đồng hồ.',
+        })),
+        bulletList([
+          [inlineCode('toFormat'), ', ', inlineCode('parse'), ', ', inlineCode('parseFrom'), ', ', inlineCode('begin'), ', ', inlineCode('end'), localized(context.locale, { en: ' accept { timeZone }. Instants show the zone wall clock; zone-less and date-only strings keep their digits.', vi: ' nhận { timeZone }. Instant hiện theo giờ đồng hồ của múi giờ; chuỗi không có múi giờ và chuỗi chỉ có ngày giữ nguyên chữ số.' })],
+          [inlineCode('toZonedParts'), ' / ', inlineCode('fromZonedParts'), localized(context.locale, { en: ' convert between an instant and zone fields. A repeated wall clock takes the earlier offset; a skipped one moves forward.', vi: ' chuyển qua lại giữa instant và các trường của múi giờ. Giờ đồng hồ lặp lại lấy offset sớm hơn; giờ bị bỏ qua dời về sau.' })],
+          [inlineCode('MatchOptions.timeZone'), localized(context.locale, { en: ' resolves date-today, date-relative, and zone-less filter operands in the zone.', vi: ' tính date-today, date-relative và toán hạng filter không có múi giờ trong múi giờ đó.' })],
+        ]),
+        callout(
+          'warning',
+          localized(context.locale, { en: 'Use an IANA id, not a fixed offset', vi: 'Dùng id IANA, không dùng offset cố định' }),
+          paragraph(localized(context.locale, {
+            en: 'Asia/Ho_Chi_Minh was +08:00 from 1959-12-31 to 1975-06-13. A fixed +07:00 shows dates of that period on the wrong day, so isValidTimeZone rejects numeric offsets.',
+            vi: 'Asia/Ho_Chi_Minh là +08:00 từ 1959-12-31 đến 1975-06-13. Offset cố định +07:00 hiện ngày của giai đoạn đó sai một ngày, nên isValidTimeZone từ chối offset số.',
+          })),
+        ),
+        codeBlock(
+          `const zone = { timeZone: 'Asia/Ho_Chi_Minh' };
+
+DateUtilities.toFormat('1960-05-19T16:00:00Z', 'dd/MM/yyyy', zone); // '20/05/1960'
+DateUtilities.parse('1960/05/20 08:00:00', zone); // 1960-05-20T00:00:00.000Z
+DateUtilities.begin('1975/06/12', zone); // 1975-06-11T16:00:00.000Z (a 25-hour day)`,
+          localized(context.locale, { en: 'Same wall clock on every host', vi: 'Cùng giờ đồng hồ trên mọi máy' }),
+        ),
       ],
     },
     {

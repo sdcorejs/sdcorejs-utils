@@ -12,7 +12,7 @@ import {
   MatchOptions,
   ValidatedFilter,
 } from '../models/filter.model';
-import { DateUtilities } from './date.fns';
+import { DateUtilities, TimeZoneOptions } from './date.fns';
 import { Utilities } from './utility.fns';
 
 const DEFAULT_MAX_FILTER_DEPTH = 32;
@@ -35,6 +35,8 @@ export interface ToEpochOptions {
    * enabling it can reinterpret legitimate pre-2001 millisecond timestamps.
    */
   legacyTimestampInference?: boolean;
+  /** IANA time zone for zone-less date strings. Omitted keeps the host's local time zone. */
+  timeZone?: string;
 }
 
 type DataRecord = Record<string, unknown>;
@@ -100,20 +102,26 @@ const getTimestampUnit = (
   return unit;
 };
 
-const parseTemporalString = (value: string): number | null => {
+/** Epoch of a zone-less string: local without a zone, otherwise the wall clock in `timeZone`. */
+const zoneLessEpoch = (value: string, format: string, hasTime: boolean, timeZone: string | undefined): number | null => {
+  if (timeZone !== undefined) return DateUtilities.parseFrom(value, format, { timeZone })?.getTime() ?? null;
+  return (hasTime ? DateUtilities.parseLocalDateTimeStrict(value, format) : DateUtilities.parseLocalDateStrict(value, format)).getTime();
+};
+
+const parseTemporalString = (value: string, timeZone?: string): number | null => {
   try {
     if (DateUtilities.isValidInstant(value)) return DateUtilities.parseInstant(value).getTime();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return DateUtilities.parseLocalDateStrict(value).getTime();
-    if (/^\d{4}\/\d{2}\/\d{2}$/.test(value)) return DateUtilities.parseLocalDateStrict(value, 'yyyy/MM/dd').getTime();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return zoneLessEpoch(value, 'yyyy-MM-dd', false, timeZone);
+    if (/^\d{4}\/\d{2}\/\d{2}$/.test(value)) return zoneLessEpoch(value, 'yyyy/MM/dd', false, timeZone);
     if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(value)) {
-      return DateUtilities.parseLocalDateStrict(value, value.includes('/') ? 'MM/dd/yyyy' : 'MM-dd-yyyy').getTime();
+      return zoneLessEpoch(value, value.includes('/') ? 'MM/dd/yyyy' : 'MM-dd-yyyy', false, timeZone);
     }
     if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(value)) {
-      return DateUtilities.parseLocalDateTimeStrict(value).getTime();
+      return zoneLessEpoch(value, 'yyyy-MM-ddTHH:mm:ss', true, timeZone);
     }
     if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}$/.test(value)) {
       const normalized = value.replace(' ', 'T');
-      return DateUtilities.parseLocalDateTimeStrict(normalized, 'yyyy-MM-ddTHH:mm').getTime();
+      return zoneLessEpoch(normalized, 'yyyy-MM-ddTHH:mm', true, timeZone);
     }
   } catch {
     return null;
@@ -140,7 +148,7 @@ export const toEpoch = (value: unknown, options: ToEpochOptions = {}): number | 
   const trimmed = value.trim();
   if (!trimmed || trimmed !== value) return null;
   if (NUMERIC_STRING.test(trimmed)) return toEpoch(Number(trimmed), options);
-  return parseTemporalString(trimmed);
+  return parseTemporalString(trimmed, options.timeZone);
 };
 
 const normalize = (
@@ -254,10 +262,41 @@ export const isDateRelative = (value: unknown): value is DateRelative => {
     (unit === 'hour' || unit === 'day' || unit === 'week' || unit === 'month');
 };
 
-/** Resolves a relative-date specification using an optional deterministic reference time. */
-export const resolveRelativeDate = (relative: DateRelative, now: Date = new Date()): Date => {
+const MILLISECONDS_PER_HOUR = 60 * 60 * 1000;
+
+/** Relative date in the calendar of a fixed zone: hours are elapsed time, day/week/month start at midnight in the zone. */
+const resolveZonedRelativeDate = (relative: DateRelative, now: Date, timeZone: string, amount: number): Date => {
+  if (relative.unit === 'hour') return new Date(now.getTime() + amount * MILLISECONDS_PER_HOUR);
+  const today = DateUtilities.toZonedParts(now, timeZone);
+  if (!today) throw new FilterValidationError('Could not resolve relative-date reference time');
+  let { year, month, day } = today;
+  if (relative.unit === 'day' || relative.unit === 'week') {
+    day += relative.unit === 'week' ? amount * 7 : amount;
+  } else {
+    const absoluteMonth = year * 12 + (month - 1) + amount;
+    year = Math.floor(absoluteMonth / 12);
+    month = absoluteMonth - year * 12 + 1;
+    const lastDay = new Date(0);
+    lastDay.setUTCFullYear(year, month, 0);
+    day = Math.min(day, lastDay.getUTCDate());
+  }
+  try {
+    return DateUtilities.fromZonedParts({ year, month, day }, timeZone);
+  } catch {
+    throw new FilterValidationError('Could not resolve relative date');
+  }
+};
+
+/**
+ * Resolves a relative-date specification using an optional deterministic reference time. With
+ * `options.timeZone`, day/week/month steps use that zone's calendar and hour steps add elapsed hours.
+ */
+export const resolveRelativeDate = (relative: DateRelative, now: Date = new Date(), options?: TimeZoneOptions): Date => {
   if (!isDateRelative(relative)) throw new FilterValidationError('Invalid relative-date specification');
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new FilterValidationError('Invalid relative-date reference time');
+  if (options?.timeZone !== undefined) {
+    return resolveZonedRelativeDate(relative, now, options.timeZone, (relative.direction === 'previous' ? -1 : 1) * relative.amount);
+  }
   const base = relative.unit === 'hour' ? new Date(now.getTime()) : DateUtilities.begin(now);
   if (!base) throw new FilterValidationError('Could not resolve relative-date reference time');
   const amount = (relative.direction === 'previous' ? -1 : 1) * relative.amount;
@@ -343,6 +382,7 @@ const validateBetweenOrder = (
   const epochOptions = {
     timestampUnit: getTimestampUnit(field, unit, options),
     legacyTimestampInference: options?.legacyTimestampInference,
+    timeZone: options?.timeZone,
   };
   const comparison = compareValues(from, to, type, epochOptions, epochOptions);
   if (!comparison.valid) throw new FilterValidationError('BETWEEN bounds are invalid for the declared field type');
@@ -443,6 +483,7 @@ const validateNode = <T>(
       const epochOptions = {
         timestampUnit: getTimestampUnit(field, timestampUnit, options as MatchOptions),
         legacyTimestampInference: options?.legacyTimestampInference,
+        timeZone: options?.timeZone,
       };
       if (Array.isArray(clonedData)) {
         for (let index = 0; index < clonedData.length; index++) {
@@ -507,11 +548,14 @@ const resolveDataDetailed = (filter: FilterHasData, entity: unknown, options?: M
       return { ...resolution, field: filter.data };
     }
     case 'date-today': {
-      const today = DateUtilities.begin(options?.now ?? new Date());
+      const zone = options?.timeZone === undefined ? undefined : { timeZone: options.timeZone };
+      const today = DateUtilities.begin(options?.now ?? new Date(), zone);
       return { found: today !== null, value: today };
     }
-    case 'date-relative':
-      return { found: true, value: resolveRelativeDate(filter.data, options?.now ?? new Date()) };
+    case 'date-relative': {
+      const zone = options?.timeZone === undefined ? undefined : { timeZone: options.timeZone };
+      return { found: true, value: resolveRelativeDate(filter.data, options?.now ?? new Date(), zone) };
+    }
     default:
       return { found: true, value: filter.data };
   }
@@ -529,10 +573,12 @@ const evaluateHasData = (filter: FilterHasData, entity: unknown, options?: Match
   const leftEpoch = {
     timestampUnit: getTimestampUnit(filter.field, filter.timestampUnit, options),
     legacyTimestampInference: options?.legacyTimestampInference,
+    timeZone: options?.timeZone,
   };
   const rightEpoch = {
     timestampUnit: getTimestampUnit(right.field ?? filter.field, filter.timestampUnit, options),
     legacyTimestampInference: options?.legacyTimestampInference,
+    timeZone: options?.timeZone,
   };
   const type = resolveType(filter.field, left.value, right.value, filter.dataType, leftEpoch.timestampUnit, options);
 
@@ -588,6 +634,7 @@ const evaluateBetween = (filter: FilterBetween, entity: unknown, options?: Match
   const epoch = {
     timestampUnit: getTimestampUnit(filter.field, filter.timestampUnit, options),
     legacyTimestampInference: options?.legacyTimestampInference,
+    timeZone: options?.timeZone,
   };
   const lower = compareValues(resolution.value, filter.data.from, type, epoch, epoch);
   const upper = compareValues(resolution.value, filter.data.to, type, epoch, epoch);

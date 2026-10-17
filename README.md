@@ -383,6 +383,35 @@ const age = DateUtilities.completedAge(birthday, '2026-06-20');
 void [instant, days, age];
 ```
 
+### Fixed time zone
+
+By default every helper reads and shows dates in the host's local time zone. When all users
+must see the same wall clock, pass an IANA zone through `TimeZoneOptions`:
+
+- `toFormat`, `parse`, `parseFrom`, `begin`, and `end` accept `{ timeZone }`. An instant shows the
+  wall clock of the zone; a zone-less or date-only string keeps its own digits and is read as a
+  wall clock in the zone when it becomes an instant.
+- `begin`/`end` use calendar arithmetic in the zone, so a 23- or 25-hour day is handled.
+- `toZonedParts` and `fromZonedParts` convert between an instant and the wall-clock fields of a
+  zone. A repeated wall clock takes the earlier offset; a skipped one moves forward.
+- `FilterUtilities` accepts `timeZone` in `MatchOptions` and `ToEpochOptions` for `date-today`,
+  `date-relative`, and zone-less date operands.
+- `isValidTimeZone` rejects numeric offsets such as `+07:00`: they carry no offset history.
+  `Asia/Ho_Chi_Minh` was `+08:00` from 1959-12-31 to 1975-06-13, so a fixed `+07:00` shows
+  dates of that period on the wrong day.
+
+Offsets come from the runtime's `Intl` data; nothing is bundled. Calls without the option
+behave exactly as before.
+
+```ts
+import { DateUtilities } from '@sdcorejs/utils/fns';
+
+const zone = { timeZone: 'Asia/Ho_Chi_Minh' };
+DateUtilities.toFormat('1960-05-19T16:00:00Z', 'dd/MM/yyyy', zone); // '20/05/1960' on every host
+DateUtilities.parse('1960/05/20 08:00:00', zone)?.toISOString(); // '1960-05-20T00:00:00.000Z'
+DateUtilities.begin('1975/06/12', zone)?.toISOString(); // '1975-06-11T16:00:00.000Z'
+```
+
 ## Filters
 
 The supported comparison operators are `EQUAL`, `NOT_EQUAL`, `CONTAIN`,

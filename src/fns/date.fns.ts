@@ -11,6 +11,26 @@ export interface AddMonthsOptions {
   overflow?: 'constrain' | 'balance' | 'reject';
 }
 
+/** Reads and shows dates in one fixed IANA time zone instead of the host's local zone. */
+export interface TimeZoneOptions {
+  /**
+   * IANA time zone id such as `Asia/Ho_Chi_Minh`. Omitted means the host's local zone, exactly as in 1.2.x.
+   * Numeric offsets (`+07:00`) are rejected because they carry no offset history.
+   */
+  timeZone?: string;
+}
+
+/** Wall-clock fields in a time zone; `month` is 1-12. */
+export interface ZonedDateTimeParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  millisecond: number;
+}
+
 const isLeapYear = (year: number): boolean => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 
 const daysInMonth = (year: number, month: number): number => {
@@ -78,7 +98,15 @@ const makeLocalDate = (
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const parseByFormat = (value: string, format: string, allowTimeOnly = false): Date => {
+type CalendarDay = Pick<ZonedDateTimeParts, 'year' | 'month' | 'day'>;
+
+const localToday = (): CalendarDay => {
+  const today = new Date();
+  return { year: today.getFullYear(), month: today.getMonth() + 1, day: today.getDate() };
+};
+
+/** Validated fields of `value` in `format`; time-only formats take their date from `today`. */
+const parseFormatFields = (value: string, format: string, allowTimeOnly: boolean, today: () => CalendarDay): ZonedDateTimeParts => {
   if (!value || !format) throw new DateParseError('Date value and format are required');
 
   const tokens: FormatToken[] = [];
@@ -107,17 +135,111 @@ const parseByFormat = (value: string, format: string, allowTimeOnly = false): Da
   if (hasAnyDate && !hasCompleteDate) throw new DateParseError('Date formats must include yyyy, MM, and dd together');
   if (!hasCompleteDate && !allowTimeOnly) throw new DateParseError('A complete local date is required');
 
-  const today = new Date();
-  const year = parts.get('yyyy') ?? today.getFullYear();
-  const month = parts.get('MM') ?? today.getMonth() + 1;
-  const day = parts.get('dd') ?? today.getDate();
+  const fallback = hasCompleteDate ? undefined : today();
+  const year = parts.get('yyyy') ?? fallback!.year;
+  const month = parts.get('MM') ?? fallback!.month;
+  const day = parts.get('dd') ?? fallback!.day;
   const hour = parts.get('HH') ?? 0;
   const minute = parts.get('mm') ?? 0;
   const second = parts.get('ss') ?? 0;
 
   if (!isValidDateParts(year, month, day)) throw new DateParseError('Invalid local calendar date');
   if (!isValidTimeParts(hour, minute, second)) throw new DateParseError('Invalid local time');
+  return { year, month, day, hour, minute, second, millisecond: 0 };
+};
+
+const parseByFormat = (value: string, format: string, allowTimeOnly = false): Date => {
+  const { year, month, day, hour, minute, second } = parseFormatFields(value, format, allowTimeOnly, localToday);
   return makeLocalDate(year, month, day, hour, minute, second);
+};
+
+// ─── Fixed time zones (Intl) ──────────────────────────────────────────────────
+// Only `Intl.DateTimeFormat` is used, so the offset history comes from the runtime's tzdata
+// and nothing is bundled. Formatters are cached per zone; the cache never changes results.
+
+const NUMERIC_OFFSET_ZONE = /^(?:[+-]|(?:UTC|GMT)[+-])/i;
+const zonedFormatters = new Map<string, Intl.DateTimeFormat>();
+
+const zonedFormatter = (timeZone: string): Intl.DateTimeFormat | null => {
+  const cached = zonedFormatters.get(timeZone);
+  if (cached) return cached;
+  if (!timeZone || timeZone.trim() !== timeZone || NUMERIC_OFFSET_ZONE.test(timeZone)) return null;
+  let formatter: Intl.DateTimeFormat;
+  try {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      era: 'short',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+    });
+  } catch {
+    return null;
+  }
+  zonedFormatters.set(timeZone, formatter);
+  return formatter;
+};
+
+const requireZone = (timeZone: unknown): Intl.DateTimeFormat => {
+  const formatter = typeof timeZone === 'string' ? zonedFormatter(timeZone) : null;
+  if (!formatter) throw new DateParseError(`Unsupported time zone: ${String(timeZone)}`);
+  return formatter;
+};
+
+const partsAt = (epoch: number, formatter: Intl.DateTimeFormat): ZonedDateTimeParts => {
+  const fields: Partial<Record<Intl.DateTimeFormatPartTypes, string>> = {};
+  for (const part of formatter.formatToParts(new Date(epoch))) fields[part.type] = part.value;
+  const yearOfEra = Number(fields.year);
+  return {
+    year: fields.era === 'BC' ? 1 - yearOfEra : yearOfEra,
+    month: Number(fields.month),
+    day: Number(fields.day),
+    hour: Number(fields.hour),
+    minute: Number(fields.minute),
+    second: Number(fields.second),
+    millisecond: ((epoch % 1000) + 1000) % 1000,
+  };
+};
+
+/** Epoch of the wall clock read as if it were UTC; out-of-range fields roll over like `Date.UTC`. */
+const wallEpoch = (parts: ZonedDateTimeParts): number => {
+  const result = new Date(0);
+  result.setUTCFullYear(parts.year, parts.month - 1, parts.day);
+  result.setUTCHours(parts.hour, parts.minute, parts.second, parts.millisecond);
+  return result.getTime();
+};
+
+const offsetAt = (epoch: number, formatter: Intl.DateTimeFormat): number => wallEpoch(partsAt(epoch, formatter)) - epoch;
+
+/**
+ * Instant of a wall clock in a zone. A repeated wall clock takes the earlier offset and a skipped
+ * one moves forward by the gap (Temporal's `compatible` disambiguation).
+ */
+const zonedEpoch = (parts: ZonedDateTimeParts, formatter: Intl.DateTimeFormat): number => {
+  const wall = wallEpoch(parts);
+  const before = wall - offsetAt(wall - MILLISECONDS_PER_DAY, formatter);
+  const after = wall - offsetAt(wall + MILLISECONDS_PER_DAY, formatter);
+  const exact = [before, after].filter(candidate => wallEpoch(partsAt(candidate, formatter)) === wall);
+  if (exact.length > 0) return Math.min(...exact);
+  return before;
+};
+
+const completeParts = (parts: Partial<ZonedDateTimeParts> & CalendarDay): ZonedDateTimeParts => {
+  const complete = {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hour: parts.hour ?? 0,
+    minute: parts.minute ?? 0,
+    second: parts.second ?? 0,
+    millisecond: parts.millisecond ?? 0,
+  };
+  if (!Object.values(complete).every(Number.isSafeInteger)) throw new DateParseError('Zoned date-time fields must be safe integers');
+  return complete;
 };
 
 /** Strictly parses a plain calendar date at local midnight without a UTC date shift. */
@@ -212,16 +334,21 @@ const normalizeLegacyInstant = (value: string): string | undefined => {
   return `${dateTime}${seconds}${offset}`;
 };
 
+const LOCAL_DATE_YMD = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})$/;
+const LOCAL_DATE_MDY = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})$/;
+const LOCAL_DATE_TIME_YMD = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/;
+const LOCAL_DATE_TIME_MDY = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/;
+
 const parseLegacyString = (value: string): Date => {
   const instant = normalizeLegacyInstant(value);
   if (instant !== undefined) return parseInstant(instant);
 
-  let match = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})$/.exec(value);
+  let match = LOCAL_DATE_YMD.exec(value);
   if (match) return makeLocalDate(Number(match[1]), Number(match[3]), Number(match[4]));
-  match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})$/.exec(value);
+  match = LOCAL_DATE_MDY.exec(value);
   if (match) return makeLocalDate(Number(match[4]), Number(match[1]), Number(match[3]));
 
-  match = /^(\d{4})([-/])(\d{1,2})\2(\d{1,2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/.exec(value);
+  match = LOCAL_DATE_TIME_YMD.exec(value);
   if (match) {
     const [, year, , month, day, hour, minute, second = '0', fraction = '0'] = match;
     if (!isValidDateParts(+year, +month, +day) || !isValidTimeParts(+hour, +minute, +second)) {
@@ -229,7 +356,7 @@ const parseLegacyString = (value: string): Date => {
     }
     return makeLocalDate(+year, +month, +day, +hour, +minute, +second, +fractionToMilliseconds(fraction));
   }
-  match = /^(\d{1,2})([-/])(\d{1,2})\2(\d{4})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?$/.exec(value);
+  match = LOCAL_DATE_TIME_MDY.exec(value);
   if (match) {
     const [, month, , day, year, hour, minute, second = '0', fraction = '0'] = match;
     if (!isValidDateParts(+year, +month, +day) || !isValidTimeParts(+hour, +minute, +second)) {
@@ -246,6 +373,91 @@ const parseDateInput = (value: unknown): Date => {
   throw new DateParseError('Unsupported date input');
 };
 
+/** Own fields of a zone-less string that `parseLegacyString` accepts; never converted through an instant. */
+const parseWallClock = (value: string): ZonedDateTimeParts => {
+  const build = (year: string, month: string, day: string, hour = '0', minute = '0', second = '0', fraction = '0'): ZonedDateTimeParts => {
+    const parts = { year: +year, month: +month, day: +day, hour: +hour, minute: +minute, second: +second, millisecond: +fractionToMilliseconds(fraction) };
+    if (!isValidDateParts(parts.year, parts.month, parts.day) || !isValidTimeParts(parts.hour, parts.minute, parts.second)) {
+      throw new DateParseError('Invalid local date-time');
+    }
+    return parts;
+  };
+  let match = LOCAL_DATE_YMD.exec(value);
+  if (match) return build(match[1], match[3], match[4]);
+  match = LOCAL_DATE_MDY.exec(value);
+  if (match) return build(match[4], match[1], match[3]);
+  match = LOCAL_DATE_TIME_YMD.exec(value);
+  if (match) return build(match[1], match[3], match[4], match[5], match[6], match[7], match[8]);
+  match = LOCAL_DATE_TIME_MDY.exec(value);
+  if (match) return build(match[4], match[1], match[3], match[5], match[6], match[7], match[8]);
+  throw new DateParseError('Unsupported date string');
+};
+
+/** An instant (Date, epoch, ISO with Z/offset) or the own fields of a zone-less string. */
+const readZoned = (value: unknown): { instant: number } | { wall: ZonedDateTimeParts } => {
+  if (value instanceof Date || typeof value === 'number') return { instant: parseInstant(value).getTime() };
+  if (typeof value !== 'string' || value.length === 0) throw new DateParseError('Unsupported date input');
+  const instant = normalizeLegacyInstant(value);
+  if (instant !== undefined) return { instant: parseInstant(instant).getTime() };
+  return { wall: parseWallClock(value) };
+};
+
+const zonedFields = (value: unknown, formatter: Intl.DateTimeFormat): ZonedDateTimeParts => {
+  const reading = readZoned(value);
+  return 'instant' in reading ? partsAt(reading.instant, formatter) : reading.wall;
+};
+
+const zonedInstant = (value: unknown, formatter: Intl.DateTimeFormat): number => {
+  const reading = readZoned(value);
+  return 'instant' in reading ? reading.instant : zonedEpoch(reading.wall, formatter);
+};
+
+/** Returns whether `value` is an IANA time zone id this runtime supports; numeric offsets and `local` are rejected. */
+export const isValidTimeZone = (value: unknown): boolean => typeof value === 'string' && zonedFormatter(value) !== null;
+
+/** Wall-clock fields of a supported value in `timeZone`; zone-less strings keep their own fields. `null` when invalid. */
+export const toZonedParts = (value: unknown, timeZone: string): ZonedDateTimeParts | null => {
+  try {
+    return { ...zonedFields(value, requireZone(timeZone)) };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Instant of a wall clock in `timeZone`. Time fields default to 0 and out-of-range fields roll over
+ * like `Date.UTC`. A repeated wall clock takes the earlier offset; a skipped one moves forward.
+ * Throws `DateParseError` for an unsupported zone or non-integer fields.
+ */
+export const fromZonedParts = (parts: Partial<ZonedDateTimeParts> & Pick<ZonedDateTimeParts, 'year' | 'month' | 'day'>, timeZone: string): Date => {
+  const formatter = requireZone(timeZone);
+  const result = new Date(zonedEpoch(completeParts(parts), formatter));
+  if (!Number.isFinite(result.getTime())) throw new DateParseError('Zoned date-time is outside the Date range');
+  return result;
+};
+
+/** Lenient parser for every input `isDate` accepts; `null` instead of throwing. Zone-less strings are read in `options.timeZone`. */
+export const parse = (value: unknown, options?: TimeZoneOptions): Date | null => {
+  try {
+    if (options?.timeZone === undefined) return parseDateInput(value);
+    return new Date(zonedInstant(value, requireZone(options.timeZone)));
+  } catch {
+    return null;
+  }
+};
+
+const formatFields = (format: string, parts: ZonedDateTimeParts): string => {
+  const values: Record<FormatToken, string> = {
+    yyyy: parts.year.toString().padStart(4, '0'),
+    MM: parts.month.toString().padStart(2, '0'),
+    dd: parts.day.toString().padStart(2, '0'),
+    HH: parts.hour.toString().padStart(2, '0'),
+    mm: parts.minute.toString().padStart(2, '0'),
+    ss: parts.second.toString().padStart(2, '0'),
+  };
+  return format.replace(/yyyy|MM|dd|HH|mm|ss/g, token => values[token as FormatToken]);
+};
+
 /** Legacy broad date guard, now rejecting coercible objects and impossible calendar values. */
 export const isDate = (value: unknown): boolean => {
   try {
@@ -256,24 +468,34 @@ export const isDate = (value: unknown): boolean => {
   }
 };
 
-/** Formats a supported date value in the local timezone; every token occurrence is replaced. */
-export const toFormat = (value: unknown, format: string): string => {
+/**
+ * Formats a supported date value; every token occurrence is replaced. Without `options.timeZone` it uses
+ * the local timezone. With it, an instant shows the zone's wall clock and a zone-less string keeps its own digits.
+ */
+export const toFormat = (value: unknown, format: string, options?: TimeZoneOptions): string => {
   if (typeof format !== 'string') return '';
+  if (options?.timeZone !== undefined) {
+    try {
+      return formatFields(format, zonedFields(value, requireZone(options.timeZone)));
+    } catch {
+      return '';
+    }
+  }
   let date: Date;
   try {
     date = parseDateInput(value);
   } catch {
     return '';
   }
-  const values: Record<FormatToken, string> = {
-    yyyy: date.getFullYear().toString().padStart(4, '0'),
-    MM: (date.getMonth() + 1).toString().padStart(2, '0'),
-    dd: date.getDate().toString().padStart(2, '0'),
-    HH: date.getHours().toString().padStart(2, '0'),
-    mm: date.getMinutes().toString().padStart(2, '0'),
-    ss: date.getSeconds().toString().padStart(2, '0'),
-  };
-  return format.replace(/yyyy|MM|dd|HH|mm|ss/g, token => values[token as FormatToken]);
+  return formatFields(format, {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+    second: date.getSeconds(),
+    millisecond: date.getMilliseconds(),
+  });
 };
 
 /** Adds elapsed milliseconds to a supported date value. */
@@ -356,9 +578,20 @@ export const addMonths = (value: unknown, months: number, options: AddMonthsOpti
   return validOrNull(date);
 };
 
-/** Returns local midnight at the beginning of the value's local calendar day. */
-export const begin = (value: unknown): Date | null => {
+/** Start of the calendar day `value` falls on in the zone; `dayOffset` moves to a following calendar day. */
+const zonedDayStart = (value: unknown, timeZone: string, dayOffset: number): number => {
+  const formatter = requireZone(timeZone);
+  const { year, month, day } = zonedFields(value, formatter);
+  return zonedEpoch({ year, month, day: day + dayOffset, hour: 0, minute: 0, second: 0, millisecond: 0 }, formatter);
+};
+
+/**
+ * Returns local midnight at the beginning of the value's local calendar day. With `options.timeZone` it returns
+ * the first instant of that calendar day in the zone (calendar arithmetic, never a fixed 24 hours).
+ */
+export const begin = (value: unknown, options?: TimeZoneOptions): Date | null => {
   try {
+    if (options?.timeZone !== undefined) return new Date(zonedDayStart(value, options.timeZone, 0));
     const date = parseDateInput(value);
     return makeLocalDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
   } catch {
@@ -366,8 +599,15 @@ export const begin = (value: unknown): Date | null => {
   }
 };
 
-/** Returns the final millisecond of the value's local calendar day. */
-export const end = (value: unknown): Date | null => {
+/** Returns the final millisecond of the value's local calendar day, or of its calendar day in `options.timeZone`. */
+export const end = (value: unknown, options?: TimeZoneOptions): Date | null => {
+  if (options?.timeZone !== undefined) {
+    try {
+      return new Date(zonedDayStart(value, options.timeZone, 1) - 1);
+    } catch {
+      return null;
+    }
+  }
   const date = begin(value);
   if (!date) return null;
   date.setDate(date.getDate() + 1);
@@ -486,11 +726,17 @@ export const age = (date1: unknown, date2: unknown): number | null => {
   }
 };
 
-/** Legacy format parser, now strict and locale-independent; invalid values return `null`. */
-export const parseFrom = (value: unknown, format: string): Date | null => {
+/**
+ * Legacy format parser, now strict and locale-independent; invalid values return `null`. With `options.timeZone`
+ * the parsed fields are a wall clock in that zone, and time-only formats take today's date in the zone.
+ */
+export const parseFrom = (value: unknown, format: string, options?: TimeZoneOptions): Date | null => {
   if ((typeof value !== 'string' && typeof value !== 'number') || !format) return null;
   try {
-    return parseByFormat(String(value), format, true);
+    if (options?.timeZone === undefined) return parseByFormat(String(value), format, true);
+    const formatter = requireZone(options.timeZone);
+    const fields = parseFormatFields(String(value), format, true, () => partsAt(Date.now(), formatter));
+    return new Date(zonedEpoch(fields, formatter));
   } catch {
     return null;
   }
@@ -555,6 +801,14 @@ export const DateUtilities = {
   /** Returns completed birthdays; February 29 clamps to February 28 in non-leap years. */
   completedAge,
   parseFrom,
+  /** Lenient parser for every input `isDate` accepts; `null` when invalid. Zone-less strings follow `options.timeZone`. */
+  parse,
+  /** Returns whether a string is a supported IANA time zone id (numeric offsets and `local` are rejected). */
+  isValidTimeZone,
+  /** Wall-clock fields of a value in a time zone; zone-less strings keep their own fields. */
+  toZonedParts,
+  /** Instant of a wall clock in a time zone (`compatible` disambiguation). */
+  fromZonedParts,
   /** Strictly parses `YYYY-MM-DD` as a local calendar date without UTC shifting. */
   parseLocalDateStrict,
   /** Strictly parses a local date-time without an offset. */
