@@ -18,15 +18,15 @@ const canonicalExamples = new Set([
 ]);
 
 describe('function API partition A', () => {
-  it('documents exactly one entry for each of its 54 public /fns exports', () => {
+  it('documents exactly one entry for each of its 60 public /fns exports', () => {
     const documented = [...FUNCTION_A_DOCUMENTED_SYMBOLS].sort();
     const entries = FUNCTION_A_API_ENTRIES.map(entry => entry.symbol).sort();
 
-    expect(FUNCTION_A_DOCUMENTED_SYMBOLS).toHaveLength(54);
-    expect(new Set(FUNCTION_A_DOCUMENTED_SYMBOLS)).toHaveLength(54);
-    expect(FUNCTION_A_API_ENTRIES).toHaveLength(54);
+    expect(FUNCTION_A_DOCUMENTED_SYMBOLS).toHaveLength(60);
+    expect(new Set(FUNCTION_A_DOCUMENTED_SYMBOLS)).toHaveLength(60);
+    expect(FUNCTION_A_API_ENTRIES).toHaveLength(60);
     expect(entries).toEqual(documented);
-    expect(new Set(FUNCTION_A_API_ENTRIES.map(entry => entry.id))).toHaveLength(54);
+    expect(new Set(FUNCTION_A_API_ENTRIES.map(entry => entry.id))).toHaveLength(60);
   });
 
   it('pins every assigned symbol to the canonical /fns import path', () => {
@@ -39,9 +39,9 @@ describe('function API partition A', () => {
     expect(FUNCTION_A_API_ENTRIES.every(entry => entry.importPath === '@sdcorejs/utils/fns')).toBe(true);
   });
 
-  it('documents all 88 public utility namespace members without extras', () => {
+  it('documents all 92 public utility namespace members without extras', () => {
     const namespaces = Object.entries(FUNCTION_A_NAMESPACE_MEMBERS);
-    expect(namespaces.reduce((count, [, members]) => count + members.length, 0)).toBe(88);
+    expect(namespaces.reduce((count, [, members]) => count + members.length, 0)).toBe(92);
 
     for (const [namespace, expectedMembers] of namespaces) {
       const entry = FUNCTION_A_API_ENTRIES.find(candidate => candidate.symbol === namespace);

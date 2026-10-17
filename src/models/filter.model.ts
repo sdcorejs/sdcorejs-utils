@@ -263,4 +263,9 @@ export interface MatchOptions<T = any> {
   missingValuePolicy?: 'nullish' | 'distinct';
   /** Deterministic reference time used by today/relative-date operands. */
   now?: Date;
+  /**
+   * IANA time zone (`Asia/Ho_Chi_Minh`) for date-today, date-relative and zone-less date strings.
+   * Omitted keeps the host's local time zone. Instants with `Z`/an offset are unaffected.
+   */
+  timeZone?: string;
 }
