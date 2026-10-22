@@ -652,6 +652,64 @@ try {
 }
 ```
 
+### Request cancellation
+
+Use `isAbortError` from `@sdcorejs/utils/errors` (also exported from `@sdcorejs/utils`)
+in catch handlers when typing a new search cancels an old request, changing pages or
+filters, navigating away, or tearing down a component. Cancellation is deliberate:
+ignore it or rethrow for the caller, without a toast, error log, or error UI state.
+
+A non-null object with `name === 'AbortError'` matches across realms. For a custom
+reason, pass the request signal: it must have `aborted === true` and the caught
+value must equal `signal.reason` using `===`. A readable `TimeoutError` always
+returns false, including when it is the signal reason, so the UI still reports
+timeouts. The helper never follows `cause` and never throws on getters or Proxies;
+it does not intentionally mutate inputs or trigger other effects. Caller getters
+and Proxy traps can still execute their own code.
+
+A service suppresses cancellation toasts and rethrows for its caller:
+
+```ts
+import { isAbortError } from '@sdcorejs/utils/errors';
+
+export async function loadProfile(
+  showToast: (message: string) => void,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  try {
+    const response = await fetch('/api/profile', { signal });
+    if (!response.ok) throw new Error('Profile request failed');
+    return await response.json();
+  } catch (error: unknown) {
+    if (!isAbortError(error, signal)) showToast('Could not load the profile.');
+    throw error;
+  }
+}
+```
+
+A custom reason needs the same request signal; use the platform's
+`signal.throwIfAborted()` to throw cancellation:
+
+```ts
+import { isAbortError } from '@sdcorejs/utils/errors';
+
+export function customCancellation(): boolean {
+  const controller = new AbortController();
+  const reason = { action: 'navigation' };
+  controller.abort(reason);
+  try {
+    controller.signal.throwIfAborted();
+    return false;
+  } catch (error: unknown) {
+    return isAbortError(error, controller.signal); // true; without the signal: false
+  }
+}
+```
+
+See the [four compiled examples](./site/src/examples/abort-errors.example.ts)
+for superseded search requests and timeout reporting. `npm run test:examples`
+checks them against the packed declarations and detects drift from JSDoc.
+
 ## Migration from 1.1
 
 Version 1.2 preserves supported package entry points and legacy payload compatibility,

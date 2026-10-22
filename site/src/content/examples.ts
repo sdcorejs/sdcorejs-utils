@@ -2,6 +2,19 @@ import { defineExample, definePage, lazyPage } from './registry';
 
 export const EXAMPLE_ENTRIES = [
   defineExample({
+    id: 'abort-errors',
+    pageId: 'example-paging-async',
+    anchor: 'abort-errors',
+    title: { en: 'Handle request cancellation and timeouts', vi: 'Xử lý hủy request và timeout' },
+    summary: {
+      en: 'Four checked examples: service rethrow without cancellation toasts, superseded searches, custom reasons, and timeouts reported as failures.',
+      vi: 'Bốn ví dụ được kiểm tra: service ném lại nhưng bỏ toast khi hủy, tìm kiếm thay request cũ, reason tùy chỉnh và timeout được báo là lỗi.',
+    },
+    language: 'ts',
+    loadSource: async () => (await import('../examples/abort-errors.example.ts?raw')).default,
+    relatedSymbols: ['isAbortError'],
+  }),
+  defineExample({
     id: 'paging-zero',
     pageId: 'example-paging-async',
     anchor: 'paging-zero',

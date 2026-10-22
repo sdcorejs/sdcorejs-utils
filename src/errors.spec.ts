@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { JSDOM } from 'jsdom';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import * as errors from './errors';
 import {
   CircularReferenceError,
@@ -33,6 +36,142 @@ const exportedErrorClasses = (Object.entries(errors) as [string, unknown][]).fil
 );
 
 const branded = (...names: string[]) => ({ [ERROR_BRANDS]: Object.freeze(names) });
+
+describe('isAbortError cancellation contract', () => {
+  // Keep the missing-export RED an assertion failure, not an import/configuration failure.
+  const { isAbortError } = errors as typeof errors & {
+    isAbortError: (error: unknown, signal?: AbortSignal | null) => boolean;
+  };
+  beforeAll(() => expect(isAbortError).toBeTypeOf('function'));
+
+  it('recognizes AbortError names, including a DOMException from another realm', () => {
+    expect(isAbortError(new DOMException('cancelled', 'AbortError'))).toBe(true);
+    expect(isAbortError(Object.assign(new Error('cancelled'), { name: 'AbortError' }))).toBe(true);
+    expect(isAbortError({ name: 'AbortError' }, null)).toBe(true);
+    const window = new JSDOM('').window;
+    try {
+      const foreign = new window.DOMException('cancelled', 'AbortError');
+      expect(foreign instanceof DOMException).toBe(false);
+      expect(isAbortError(foreign)).toBe(true);
+    } finally {
+      window.close();
+    }
+  });
+
+  it.each([new Error('custom'), {}, 'cancelled', 42, true, null, Symbol('reason'), () => undefined])(
+    'requires the aborted signal to recognize a custom reason (%s)', (reason) => {
+      const controller = new AbortController();
+      controller.abort(reason);
+      expect(isAbortError(reason)).toBe(false);
+      expect(isAbortError(reason, controller.signal)).toBe(true);
+      expect(isAbortError({}, controller.signal)).toBe(false);
+    },
+  );
+
+  it('uses strict equality, requires aborted === true, and accepts null/undefined signals', () => {
+    const controller = new AbortController();
+    expect(isAbortError(controller.signal.reason, controller.signal)).toBe(false);
+    controller.abort(NaN);
+    expect(isAbortError(NaN, controller.signal)).toBe(false);
+    expect(isAbortError(undefined, { aborted: true, reason: undefined } as AbortSignal)).toBe(true);
+    expect(isAbortError('x', { aborted: 1, reason: 'x' } as unknown as AbortSignal)).toBe(false);
+    expect(isAbortError({}, null)).toBe(false);
+    expect(isAbortError({}, undefined)).toBe(false);
+    const aborted = AbortSignal.abort();
+    expect(isAbortError(aborted.reason)).toBe(true);
+    expect(isAbortError(aborted.reason, aborted)).toBe(true);
+  });
+
+  it('always rejects TimeoutError, even when it matches the aborted signal reason', async () => {
+    const reason = new DOMException('late', 'TimeoutError');
+    expect(isAbortError(reason)).toBe(false);
+    expect(isAbortError(reason, AbortSignal.abort(reason))).toBe(false);
+    expect(isAbortError({ name: 'TimeoutError' })).toBe(false);
+    const signal = AbortSignal.timeout(1);
+    await new Promise<void>(resolve => signal.addEventListener('abort', () => resolve(), { once: true }));
+    expect(signal.reason.name).toBe('TimeoutError');
+    expect(isAbortError(signal.reason, signal)).toBe(false);
+  });
+
+  it.each([null, undefined, 'AbortError', 0, false, 1n, Symbol('AbortError'), {}, new Error('ordinary')])(
+    'rejects unrelated input without throwing (%s)', value => expect(isAbortError(value)).toBe(false),
+  );
+
+  it('rejects every default utils error class', () => {
+    for (const [, ErrorType] of exportedErrorClasses) {
+      const instance = Reflect.construct(ErrorType, ['test']);
+      expect(isAbortError(instance), ErrorType.errorName).toBe(false);
+    }
+  });
+
+  it('does not read cause, mutate frozen input, or inspect a matching AbortError signal', () => {
+    const cause = vi.fn(() => { throw new Error('must not read cause'); });
+    const error = Object.freeze({ name: 'AbortError', get cause() { return cause(); } });
+    const signal = new Proxy({} as AbortSignal, { get() { throw new Error('unused signal'); } });
+    expect(isAbortError(error, signal)).toBe(true);
+    expect(isAbortError(Object.freeze({ get cause() { return cause(); } }))).toBe(false);
+    expect(isAbortError({ cause: error })).toBe(false);
+    expect(cause).not.toHaveBeenCalled();
+    const reason = Object.freeze({ message: 'custom' });
+    expect(isAbortError(reason, Object.freeze({ aborted: true, reason }) as AbortSignal)).toBe(true);
+  });
+
+  it('reads name once and reason only after confirming the signal is aborted', () => {
+    const name = vi.fn(() => 'AbortError');
+    expect(isAbortError({ get name() { return name(); } })).toBe(true);
+    expect(name).toHaveBeenCalledTimes(1);
+    const reason = vi.fn(() => { throw new Error('unused reason'); });
+    expect(isAbortError({}, { aborted: false, get reason() { return reason(); } } as unknown as AbortSignal)).toBe(false);
+    expect(reason).not.toHaveBeenCalled();
+    const timeoutName = vi.fn(() => 'TimeoutError');
+    const timeout = { get name() { return timeoutName(); } };
+    expect(isAbortError(timeout, AbortSignal.abort(timeout))).toBe(false);
+    expect(timeoutName).toHaveBeenCalledTimes(1);
+  });
+
+  it('contains throwing accessors, throwing proxies and revoked proxies', () => {
+    const throwing = { get name() { throw new Error('name'); } };
+    const proxy = new Proxy({}, { get() { throw new Error('proxy'); } });
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    for (const value of [throwing, proxy, revoked.proxy]) {
+      expect(isAbortError(value)).toBe(false);
+      expect(isAbortError(value, AbortSignal.abort(value))).toBe(false);
+    }
+    for (const signal of [
+      new Proxy({}, { get() { throw new Error('signal proxy'); } }),
+      { get aborted() { throw new Error('aborted'); } },
+      { aborted: true, get reason() { throw new Error('reason'); } },
+      revoked.proxy,
+    ]) {
+      expect(isAbortError({}, signal as AbortSignal)).toBe(false);
+    }
+  });
+
+  it.skipIf(typeof fetch !== 'function')('recognizes a real fetch aborted after the server receives it', async () => {
+    const server = createServer();
+    server.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    const controller = new AbortController();
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Expected TCP address');
+      const received = once(server, 'request');
+      const result = fetch(`http://127.0.0.1:${address.port}`, { signal: controller.signal })
+        .then(() => { throw new Error('Expected fetch rejection'); }, error => error as unknown);
+      await Promise.race([received, result.then(() => { throw new Error('Fetch ended before request'); })]);
+      controller.abort();
+      const error = await result;
+      expect(isAbortError(error)).toBe(true);
+      expect(isAbortError(error, controller.signal)).toBe(true);
+    } finally {
+      controller.abort();
+      const closed = new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      server.closeAllConnections();
+      await closed;
+    }
+  });
+});
 
 describe('error class identity', () => {
   it('exports every error class with its own errorName equal to the export name', () => {

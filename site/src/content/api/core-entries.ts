@@ -967,6 +967,59 @@ const constantSpecs = [
 
 const errorSpecs = [
   {
+    symbol: 'isAbortError',
+    kind: 'function',
+    pageId: 'api-errors',
+    importPath: ERRORS,
+    signature: 'isAbortError(error: unknown, signal?: AbortSignal | null): boolean',
+    en: 'Recognizes intentional request cancellation in catch handlers so the UI can suppress cancellation toasts, error logs, and error states.',
+    vi: 'Nhận diện việc chủ động hủy request trong catch để UI bỏ qua toast, log lỗi và trạng thái lỗi khi hủy.',
+    returnsEn: 'True for a non-null object\'s AbortError name, or strict equality with an aborted signal\'s reason; false for TimeoutError, unrelated input, and failed necessary property reads.',
+    returnsVi: 'True khi object khác null có name AbortError, hoặc bằng reason của signal đã hủy theo ===; false với TimeoutError, đầu vào không liên quan và truy cập thuộc tính cần thiết bị lỗi.',
+    parameters: [
+      {
+        name: 'error',
+        type: 'unknown',
+        en: 'Any caught value, including null/undefined and primitives. Null/undefined can only match through an aborted signal\'s reason.',
+        vi: 'Mọi giá trị bắt được, kể cả null/undefined và primitive. Null/undefined chỉ có thể khớp qua reason của signal đã hủy.'
+      },
+      {
+        name: 'signal',
+        type: 'AbortSignal | null',
+        optional: true,
+        en: 'The request signal for abort(customReason). Omitted, null, or undefined means name-only detection.',
+        vi: 'Signal của request khi dùng abort(customReason). Bỏ qua, null hoặc undefined nghĩa là chỉ nhận diện theo name.'
+      }
+    ],
+    runtimeEn: [
+      'Returns true when a non-null object has name === \'AbortError\', including DOMException and an Error renamed to AbortError.',
+      'Otherwise requires signal.aborted === true and error === signal.reason. Pass the same request signal for abort(customReason); without it the helper cannot associate an arbitrary reason with cancellation.',
+      'TimeoutError always returns false even when equal to signal.reason: timeout is a real failure that should be reported. All other unmatched values return false. Never follows cause, avoiding false classification of wrapper failures.',
+      'DOMException distinguishes error kinds by name, without a subclass for each kind. Name checks work across realms where instanceof DOMException fails; browsers, Node 20/22/24, and jsdom are supported.',
+      'Use for a new search replacing the previous request, page/filter changes, navigation, and component teardown. Rethrow for the caller or ignore cancellation without toast, error log, or error UI state.',
+      'Only detects cancellation. To throw, use signal.throwIfAborted() or, after checking signal.aborted, Promise.reject(signal.reason).',
+      'Never throws and has no intentional side effects. Reads name once at most, and reason only after confirming aborted. See AbortSignal.reason and AbortSignal.throwIfAborted on MDN; fetchAllByPaging accepts a cancellation signal.'
+    ],
+    runtimeVi: [
+      'Trả true khi object khác null có name === \'AbortError\', kể cả DOMException và Error được đổi name thành AbortError.',
+      'Nếu không khớp tên, cần signal.aborted === true và error === signal.reason. Truyền đúng signal của request khi dùng abort(customReason); thiếu signal thì helper không thể liên hệ reason tùy chỉnh với việc hủy.',
+      'TimeoutError luôn trả false kể cả khi bằng signal.reason: timeout là lỗi thật cần báo. Mọi giá trị khác không khớp đều trả false. Không duyệt cause để tránh nhận nhầm lỗi bọc là lỗi hủy.',
+      'DOMException phân biệt loại lỗi bằng name, không có lớp con cho từng loại. Kiểm name hoạt động khác realm khi instanceof DOMException không khớp; hỗ trợ browser, Node 20/22/24 và jsdom.',
+      'Dùng khi tìm kiếm mới thay request cũ, đổi trang/filter, điều hướng hoặc hủy component. Ném lại cho caller hoặc bỏ qua hủy mà không hiện toast, log lỗi hay đổi UI sang trạng thái lỗi.',
+      'Chỉ nhận diện hủy. Để ném lỗi, dùng signal.throwIfAborted() hoặc Promise.reject(signal.reason) sau khi kiểm signal.aborted.',
+      'Không ném lỗi và không chủ động gây side effect. Đọc name tối đa một lần, chỉ đọc reason sau khi xác nhận aborted. Xem AbortSignal.reason và AbortSignal.throwIfAborted trên MDN; fetchAllByPaging nhận signal để hủy.'
+    ],
+    securityEn: [
+      'Name matching does not prove origin or authorization. Getters and Proxy traps may execute caller code; exceptions are contained but their own side effects cannot be undone. The helper does not mutate inputs, abort requests, log, create timers, or attach listeners.'
+    ],
+    securityVi: [
+      'Khớp name không chứng minh nguồn gốc hoặc quyền truy cập. Getter và Proxy trap có thể chạy mã caller; helper bắt exception nhưng không hoàn tác side effect của mã đó. Helper không sửa đầu vào, hủy request, log, tạo timer hay gắn listener.'
+    ],
+    exampleIds: [
+      'abort-errors'
+    ]
+  },
+  {
     symbol: 'SdcoreUtilsErrorOptions',
     kind: 'interface',
     pageId: 'api-errors',
@@ -1401,6 +1454,7 @@ export const CORE_DOCUMENTED_SYMBOLS = [
   'SUPPORTED_LANGUAGES',
   'OPERATORS',
   'VALIDATION_PATTERNS',
+  'isAbortError',
   'SdcoreUtilsErrorOptions',
   'SdcoreUtilsError',
   'SecurityError',
@@ -1472,6 +1526,7 @@ export const CORE_IMPORT_PATHS = {
   SUPPORTED_LANGUAGES: CONSTANTS,
   OPERATORS: CONSTANTS,
   VALIDATION_PATTERNS: CONSTANTS,
+  isAbortError: ERRORS,
   SdcoreUtilsErrorOptions: ERRORS,
   SdcoreUtilsError: ERRORS,
   SecurityError: ERRORS,

@@ -19,6 +19,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import ts from 'typescript';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, '..');
@@ -266,6 +267,15 @@ assert.equal(typeof models.resolveMaybeAsync, 'function');
 assert.equal(typeof constants.EMPTY_STR, 'string');
 assert.equal(typeof fns.ValidationUtilities, 'object');
 assert.equal(typeof errors.SdcoreUtilsError, 'function');
+for (const entry of [root, errors]) {
+  assert.equal(typeof entry.isAbortError, 'function', 'public entry must export isAbortError');
+  assert.equal(entry.isAbortError(new DOMException('cancelled', 'AbortError')), true);
+  const reason = { action: 'superseded' };
+  assert.equal(entry.isAbortError(reason, AbortSignal.abort(reason)), true);
+  const timeout = new DOMException('late', 'TimeoutError');
+  assert.equal(entry.isAbortError(timeout, AbortSignal.abort(timeout)), false);
+}
+
 assert.ok(new root.UnsafeObjectKeyError('__proto__') instanceof errors.SdcoreUtilsError);
 assert.ok(new errors.UnsafeObjectKeyError('__proto__') instanceof root.SdcoreUtilsError);
 assert.equal(await models.resolveMaybeAsync(Promise.resolve(42)), 42);
@@ -291,6 +301,15 @@ assert.equal(typeof models.resolveMaybeAsync, 'function');
 assert.equal(typeof constants.EMPTY_STR, 'string');
 assert.equal(typeof fns.ValidationUtilities, 'object');
 assert.equal(typeof errors.SdcoreUtilsError, 'function');
+for (const entry of [root, errors]) {
+  assert.equal(typeof entry.isAbortError, 'function', 'public entry must export isAbortError');
+  assert.equal(entry.isAbortError(new DOMException('cancelled', 'AbortError')), true);
+  const reason = { action: 'superseded' };
+  assert.equal(entry.isAbortError(reason, AbortSignal.abort(reason)), true);
+  const timeout = new DOMException('late', 'TimeoutError');
+  assert.equal(entry.isAbortError(timeout, AbortSignal.abort(timeout)), false);
+}
+
 assert.ok(new root.UnsafeObjectKeyError('__proto__') instanceof errors.SdcoreUtilsError);
 assert.ok(new errors.UnsafeObjectKeyError('__proto__') instanceof root.SdcoreUtilsError);
 `,
@@ -420,11 +439,13 @@ void [narrower, subtype];
 }
 
 async function validateTypeDeclarations(consumerRoot) {
+  await validateAbortDeclarations(consumerRoot);
   const typeRoot = join(consumerRoot, 'declarations');
   await mkdir(typeRoot);
   await writeFile(
     join(typeRoot, 'consumer.mts'),
     `import {
+  isAbortError,
   DateUtilities,
   SdcoreUtilsError,
   StringUtilities,
@@ -441,7 +462,12 @@ import {
   type DetectIncognitoOptions as FnsDetectIncognitoOptions,
   type IncognitoDetectionResult as FnsIncognitoDetectionResult,
 } from '@sdcorejs/utils/fns';
-import { UnsafeObjectKeyError } from '@sdcorejs/utils/errors';
+import { UnsafeObjectKeyError, isAbortError as isAbortErrorFromErrors } from '@sdcorejs/utils/errors';
+
+const abortPredicate: (error: unknown, signal?: AbortSignal | null) => boolean = isAbortError;
+const subpathPredicate: typeof abortPredicate = isAbortErrorFromErrors;
+const isCancelled: boolean = subpathPredicate({}, null);
+void [abortPredicate(undefined), abortPredicate({}, new AbortController().signal), isCancelled];
 
 const request: PagingReq<{ id: number }> = { pageNumber: 0, pageSize: 20 };
 const response: PagingRes<{ id: number }> = { items: [{ id: 1 }], total: 1 };
@@ -467,6 +493,11 @@ import models = require('@sdcorejs/utils/models');
 import constants = require('@sdcorejs/utils/constants');
 import fns = require('@sdcorejs/utils/fns');
 import errors = require('@sdcorejs/utils/errors');
+
+const abortPredicate: (error: unknown, signal?: AbortSignal | null) => boolean = root.isAbortError;
+const subpathPredicate: typeof abortPredicate = errors.isAbortError;
+const isCancelled: boolean = subpathPredicate({}, null);
+void [abortPredicate(undefined), abortPredicate({}, new AbortController().signal), isCancelled];
 
 const request: models.PagingReq<{ id: number }> = { pageNumber: 0, pageSize: 20 };
 const response: models.PagingRes<{ id: number }> = { items: [{ id: 1 }], total: 1 };
@@ -505,8 +536,15 @@ if (typeof root.DateUtilities !== 'object' ||
     typeof models.resolveMaybeAsync !== 'function' ||
     typeof constants.EMPTY_STR !== 'string' ||
     typeof fns.ValidationUtilities !== 'object' ||
-    typeof errors.SdcoreUtilsError !== 'function') {
+    typeof errors.SdcoreUtilsError !== 'function' ||
+    typeof root.isAbortError !== 'function' ||
+    typeof errors.isAbortError !== 'function') {
   throw new Error('Browser bundle did not expose the expected package surface');
+}
+for (const entry of [root, errors]) {
+  if (!entry.isAbortError({ name: 'AbortError' }) || entry.isAbortError({ name: 'TimeoutError' })) {
+    throw new Error('Browser cancellation predicate contract failed');
+  }
 }
 `,
   );
@@ -590,6 +628,14 @@ if (failed.length > 0) {
 }
 
 async function validateExamples(consumerRoot) {
+  await validateAbortDeclarations(consumerRoot);
+  const errorSource = await readFile(join(repositoryRoot, 'src/errors.ts'), 'utf8');
+  const exampleSource = await readFile(join(repositoryRoot, 'site/src/examples/abort-errors.example.ts'), 'utf8');
+  assertAbortExampleParity(errorSource, exampleSource);
+  // Prove that the parity check detects drift without changing repository files.
+  assert.throws(() => assertAbortExampleParity(errorSource, exampleSource.replace("'@sdcorejs/utils/errors'", "'@sdcorejs/utils'")), /example .* differs/);
+  assert.throws(() => assertAbortExampleParity(errorSource, exampleSource.replace('// example:service:end', '// example:unknown:end')), /regions/);
+  assert.throws(() => assertAbortExampleParity(errorSource, exampleSource + '\n// example:service:start\n'), /markers/);
   const examplesRoot = join(consumerRoot, 'documentation-examples');
   await mkdir(examplesRoot);
 
@@ -599,6 +645,8 @@ async function validateExamples(consumerRoot) {
       recursive: true,
     });
   }
+
+  await cp(join(repositoryRoot, 'site/src/examples'), join(examplesRoot, 'site'), { recursive: true });
 
   const readme = await readFile(join(repositoryRoot, 'README.md'), 'utf8');
   const blocks = extractTypeScriptBlocks(readme);
@@ -620,8 +668,74 @@ async function validateExamples(consumerRoot) {
   });
   runTypeScript(join(examplesRoot, 'tsconfig.json'), consumerRoot);
   console.log(
-    `[package-validation] ${blocks.length} README block(s) and examples/ compiled against the tarball`,
+    `[package-validation] ${blocks.length} README block(s), examples/ and site/src/examples/ compiled against the tarball`,
   );
+}
+
+
+/** The directly attached comment is what IDE hovers receive from the declarations. */
+function abortDocumentation(source, label) {
+  const normalized = source.replace(/\r\n?/gu, '\n');
+  const declarationIndex = normalized.search(/^(?:(?:export|declare)\s+)*const isAbortError\b/mu);
+  assert.ok(declarationIndex >= 0, label + ' must declare isAbortError');
+  const before = normalized.slice(0, declarationIndex).trimEnd();
+  assert.ok(before.endsWith('*/'), label + ' isAbortError must retain attached JSDoc');
+  const start = before.lastIndexOf('/**');
+  assert.ok(start >= 0, label + ' isAbortError must have JSDoc');
+  return before.slice(start + 3, -2).split('\n')
+    .map(line => line.replace(/^ \*(?: |$)/u, '')).join('\n');
+}
+
+async function validateAbortDeclarations(consumerRoot) {
+  const sourceDocs = abortDocumentation(await readFile(join(repositoryRoot, 'src/errors.ts'), 'utf8'), 'source');
+  const probes = ['mts', 'cts'].map(extension => join(consumerRoot, 'abort-hover.' + extension));
+  for (const probe of probes) {
+    await writeFile(probe, "import { isAbortError as rootAbort } from '@sdcorejs/utils';\nimport { isAbortError as errorsAbort } from '@sdcorejs/utils/errors';\nvoid [rootAbort, errorsAbort];\n");
+  }
+  const program = ts.createProgram(probes, {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022,
+    noEmit: true,
+    types: [],
+  });
+  const checker = program.getTypeChecker();
+  for (const probe of probes) {
+    const source = program.getSourceFile(probe);
+    assert.ok(source, 'hover probe must be loaded');
+    for (const statement of source.statements.filter(ts.isImportDeclaration)) {
+      const binding = statement.importClause.namedBindings.elements[0];
+      const alias = checker.getSymbolAtLocation(binding.name);
+      assert.ok(alias, 'public isAbortError import must resolve');
+      const symbol = checker.getAliasedSymbol(alias);
+      const declaration = symbol.declarations?.[0];
+      const label = statement.moduleSpecifier.text + ' (' + basename(probe) + ')';
+      assert.ok(declaration, label + ' must resolve to a declaration');
+      // tsup re-exports root symbols from errors.d.ts/.d.cts. Follow the same alias
+      // as IDE hovers, rather than requiring duplicate declarations in index.d.ts.
+      assert.match(ts.displayPartsToString(symbol.getDocumentationComment(checker)), /catch/u, label + ' hover summary');
+      const docs = abortDocumentation(declaration.getSourceFile().text, label);
+      for (const token of ['catch', 'TimeoutError', '@param error', '@param signal', '@returns', '@remarks', '@see', 'AbortSignal/reason', 'AbortSignal/throwIfAborted', 'fetchAllByPaging']) {
+        assert.ok(docs.includes(token), label + ' must retain ' + token);
+      }
+      assert.equal((docs.match(/@example\b/gu) ?? []).length, 4, label + ' must retain four examples');
+      assert.deepEqual(extractTypeScriptBlocks(docs), extractTypeScriptBlocks(sourceDocs), label + ' must retain example code');
+    }
+  }
+  console.log('[package-validation] isAbortError hover JSDoc retained through root/errors ESM/CJS declarations');
+}
+
+function assertAbortExampleParity(errorSource, exampleSource) {
+  const source = exampleSource.replace(/\r\n?/gu, '\n');
+  assert.equal((source.match(/^\/\/ example:/gmu) ?? []).length, 8, 'abort example markers must be unique and complete');
+  const regions = [...source.matchAll(/^\/\/ example:(service|search|custom-reason|timeout):start\n([\s\S]*?)^\/\/ example:\1:end$/gmu)];
+  assert.deepEqual(regions.map(match => match[1]), ['service', 'search', 'custom-reason', 'timeout'], 'abort example regions must occur exactly once in order');
+  const header = source.slice(0, regions[0].index);
+  const blocks = extractTypeScriptBlocks(abortDocumentation(errorSource, 'source'));
+  assert.equal(blocks.length, 4, 'isAbortError must have four fenced examples');
+  for (const [index, region] of regions.entries()) {
+    assert.equal(blocks[index], header + region[2], 'abort example ' + region[1] + ' differs from JSDoc');
+  }
 }
 
 function extractTypeScriptBlocks(markdown) {
