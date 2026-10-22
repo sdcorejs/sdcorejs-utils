@@ -262,8 +262,8 @@ describe('content registry validation', () => {
 
   it('exports the complete, cross-referenced documentation registry', () => {
     expect(registry.pages).toHaveLength(35);
-    expect(registry.api).toHaveLength(164);
-    expect(registry.examples).toHaveLength(12);
+    expect(registry.api).toHaveLength(165);
+    expect(registry.examples).toHaveLength(13);
     expect(registry.pagesByRoute.get('start/overview')?.group).toBe('start');
     expect(registry.pagesByRoute.get('api/errors')?.group).toBe('api');
     expect(registry.pagesByRoute.get('examples/playgrounds')?.group).toBe('examples');

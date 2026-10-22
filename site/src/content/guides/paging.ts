@@ -143,6 +143,7 @@ const records = await fetchAllByPaging(
           [inlineCode('PagingResponseError'), localized(context.locale, { en: ' rejects malformed totals, oversized pages, empty-page no progress, and inconsistent totals while preserving legitimate duplicate values.', vi: ' từ chối total sai, trang quá lớn, trang rỗng không có tiến triển và total không nhất quán, đồng thời giữ lại giá trị trùng hợp lệ.' })],
           [inlineCode('PagingLimitError'), localized(context.locale, { en: ' stops a request that reaches maxPages or the safe page-number range.', vi: ' dừng request chạm maxPages hoặc giới hạn số trang an toàn.' })],
           [inlineCode('AbortSignal'), localized(context.locale, { en: ' is checked before and after each request and raced against the active page promise.', vi: ' được kiểm tra trước và sau mỗi request, đồng thời race với promise trang đang chạy.' })],
+          [inlineCode('isAbortError(error, signal)'), localized(context.locale, { en: ' identifies intentional cancellation in catch handlers; TimeoutError remains a reportable failure even when it equals signal.reason.', vi: ' nhận diện hủy chủ động trong catch; TimeoutError vẫn là lỗi cần báo kể cả khi bằng signal.reason.' })],
         ]),
         paragraph(
           localized(context.locale, {

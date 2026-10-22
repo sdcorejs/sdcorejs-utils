@@ -6,14 +6,14 @@ import {
 } from './core-entries';
 
 describe('core API reference inventory', () => {
-  it('documents each of the 66 model, constant, and error exports exactly once', () => {
+  it('documents each of the 67 model, constant, and error exports exactly once', () => {
     const documented = [...CORE_DOCUMENTED_SYMBOLS];
     const entrySymbols = CORE_API_ENTRIES.map((entry) => entry.symbol);
 
-    expect(documented).toHaveLength(66);
-    expect(new Set(documented)).toHaveLength(66);
+    expect(documented).toHaveLength(67);
+    expect(new Set(documented)).toHaveLength(67);
     expect(entrySymbols).toEqual(documented);
-    expect(new Set(entrySymbols)).toHaveLength(66);
+    expect(new Set(entrySymbols)).toHaveLength(67);
   });
 
   it('uses the canonical public subpath for every entry', () => {
@@ -28,7 +28,7 @@ describe('core API reference inventory', () => {
     expect(CORE_API_ENTRIES.filter((entry) => entry.importPath === '@sdcorejs/utils/constants'))
       .toHaveLength(5);
     expect(CORE_API_ENTRIES.filter((entry) => entry.importPath === '@sdcorejs/utils/errors'))
-      .toHaveLength(20);
+      .toHaveLength(21);
   });
 
   it('provides complete bilingual, runtime, security, and example metadata', () => {
@@ -53,12 +53,23 @@ describe('core API reference inventory', () => {
       (entry) => entry.importPath === '@sdcorejs/utils/errors',
     );
 
-    expect(errorEntries).toHaveLength(20);
+    expect(errorEntries).toHaveLength(21);
     for (const entry of errorEntries) {
       expect(entry.pageId, entry.symbol).toBe('api-errors');
-      expect(entry.exampleIds, entry.symbol).toContain('typed-errors');
+      expect(entry.exampleIds, entry.symbol).toContain(entry.symbol === 'isAbortError' ? 'abort-errors' : 'typed-errors');
       expect(entry.securityNotes.en.join(' ').trim(), entry.symbol).not.toBe('');
       expect(entry.securityNotes.vi.join(' ').trim(), entry.symbol).not.toBe('');
+    }
+  });
+
+  it('documents cancellation precedence and custom signal handling in both languages', () => {
+    const entry = CORE_API_ENTRIES.find(item => item.symbol === 'isAbortError');
+    expect(entry).toMatchObject({ kind: 'function', pageId: 'api-errors', importPath: '@sdcorejs/utils/errors', exampleIds: ['abort-errors'] });
+    expect(entry?.signature).toContain('signal?: AbortSignal | null');
+    for (const locale of ['en', 'vi'] as const) {
+      expect(entry?.runtimeNotes[locale].join(' ')).toContain('TimeoutError');
+      expect(entry?.runtimeNotes[locale].join(' ')).toContain('signal.reason');
+      expect(entry?.securityNotes[locale].join(' ')).toContain('Proxy');
     }
   });
 

@@ -18,8 +18,8 @@ describe('complete bilingual API reference', () => {
   it('aligns runtime entries with the machine-readable public inventories', () => {
     const entrySymbols = API_ENTRIES.map(entry => entry.symbol);
     const documentedImports: Readonly<Record<string, string>> = DOCUMENTED_IMPORT_PATHS;
-    expect(API_ENTRIES).toHaveLength(164);
-    expect(new Set(entrySymbols).size).toBe(164);
+    expect(API_ENTRIES).toHaveLength(165);
+    expect(new Set(entrySymbols).size).toBe(165);
     expect([...entrySymbols].sort()).toEqual([...DOCUMENTED_PUBLIC_SYMBOLS].sort());
     expect(Object.keys(DOCUMENTED_IMPORT_PATHS).sort()).toEqual([...DOCUMENTED_PUBLIC_SYMBOLS].sort());
 
@@ -112,7 +112,7 @@ describe('complete bilingual API reference', () => {
       }
     }
     expect(missingExamples).toEqual([]);
-    expect(API_ENTRIES.filter(entry => entry.pageId === 'api-errors')).toHaveLength(20);
+    expect(API_ENTRIES.filter(entry => entry.pageId === 'api-errors')).toHaveLength(21);
   });
 
   it('indexes every symbol, typed error, and qualified member as a deep link', () => {

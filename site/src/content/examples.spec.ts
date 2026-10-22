@@ -7,7 +7,7 @@ const context = (locale: 'en' | 'vi'): DocRenderContext => ({ locale, navigate: 
 describe('bilingual compiled examples', () => {
   it('defines unique complete metadata and real TypeScript sources', async () => {
     expect(EXAMPLE_PAGES).toHaveLength(5);
-    expect(EXAMPLE_ENTRIES).toHaveLength(12);
+    expect(EXAMPLE_ENTRIES).toHaveLength(13);
     expect(new Set(EXAMPLE_ENTRIES.map(entry => entry.id)).size).toBe(EXAMPLE_ENTRIES.length);
 
     for (const entry of EXAMPLE_ENTRIES) {
@@ -34,6 +34,17 @@ describe('bilingual compiled examples', () => {
     expect(source).toContain('Utilities.generateUuid()');
     expect(source).toMatch(/error instanceof SecureRandomUnavailableError/);
     expect(source).not.toMatch(/WebCryptoUnavailableError\s*\|\|\s*error instanceof SecureRandomUnavailableError/);
+  });
+
+  it('exposes the four checked cancellation examples', async () => {
+    const example = EXAMPLE_ENTRIES.find(entry => entry.id === 'abort-errors');
+    expect(example?.relatedSymbols).toContain('isAbortError');
+    const source = await example?.loadSource() ?? '';
+    for (const id of ['service', 'search', 'custom-reason', 'timeout']) {
+      expect(source).toContain('// example:' + id + ':start');
+    }
+    expect(source).toContain('AbortSignal.timeout');
+    expect(source).toContain('throwIfAborted()');
   });
 
   it('lazy-loads semantic pages and resolves copyable source blocks', async () => {
