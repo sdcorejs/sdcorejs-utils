@@ -8,6 +8,7 @@ import { NestedKeyOf } from './nested-key-of.model';
  * @template T - The entity type being sorted (e.g. `Product`).
  *
  * @example
+ * type Product = { createdAt: Date };
  * const order: Order<Product> = { field: 'createdAt', direction: 'DESC' };
  * // Sort products newest-first
  */

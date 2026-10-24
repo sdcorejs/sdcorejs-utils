@@ -1,14 +1,8 @@
 /**
- * Supported locale codes used by `I18nService` and `SUPPORTED_LANGUAGES`.
+ * Supported language codes: vi (Vietnamese), en (English), ja (Japanese), ko (Korean),
+ * and zh (Chinese). This is a compile-time union, not a runtime validator or translation service.
+ * Use SUPPORTED_LANGUAGES to validate an external code; region-specific tags such as en-US are not members.
  *
- * - `'vi'` — Vietnamese
- * - `'en'` — English
- * - `'ja'` — Japanese
- * - `'ko'` — Korean
- * - `'zh'` — Chinese (Simplified)
- *
- * @example
- * const lang: Language = 'vi';
- * i18nService.setLanguage(lang);
+ * @example const language: Language = 'vi';
  */
 export type Language = 'vi' | 'en' | 'ja' | 'ko' | 'zh';

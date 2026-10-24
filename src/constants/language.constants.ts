@@ -1,13 +1,11 @@
 import { Language } from '../models/language.model';
 
 /**
- * Complete list of locale codes supported by `I18nService`.
+ * Ordered language codes supported by the package's language model and built-in upload messages:
+ * Vietnamese, English, Japanese, Korean, and Chinese. Use for selectors or explicit locale validation.
+ * The array is readonly at the type level, not runtime-frozen; do not mutate the shared value.
+ * This package does not provide an i18n service or load translations for application-specific keys.
  *
- * Use this array to populate language-selector dropdowns or to validate a user-supplied
- * locale string before calling `i18nService.setLanguage()`.
- *
- * @example
- * const isSupported = SUPPORTED_LANGUAGES.includes(userLocale as Language);
- * // true for 'vi', 'en', 'ja', 'ko', 'zh' — false for anything else
+ * @example SUPPORTED_LANGUAGES.includes('en'); // true
  */
 export const SUPPORTED_LANGUAGES: readonly Language[] = ['vi', 'en', 'ja', 'ko', 'zh'] as const;

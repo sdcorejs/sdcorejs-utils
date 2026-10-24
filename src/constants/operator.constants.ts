@@ -1,23 +1,19 @@
 import { Operator } from "../models/operator.model";
 
 /**
- * Master list of all filter operators with display metadata for use in filter-builder UIs.
+ * Shared ordered metadata for all filter operators, suitable for building operator selectors.
+ * Each entry pairs an Operator value with inner 24×24 SVG markup and an application i18n key.
+ * The package does not render SVG or translate labels. Treat the shared mutable array as
+ * configuration data; copy it before sorting or modifying entries for one consumer.
  *
- * Each entry provides:
- * - `value` — the `Operator` string sent to the API
- * - `icon` — inner SVG markup (lines/polylines/rects/circles/paths) rendered inside a 24×24 `<svg>` in the UI
- * - `display` — i18n key resolved by `I18nService` for the operator label
- *
- * Operators that check null-presence (`NULL`, `NOT_NULL`) have an `icon` but no `data` field
- * in the corresponding `FilterNoData` shape.
- *
- * @example
- * // Populate a <select> with all operator options:
- * const options = OPERATORS.map(op => ({ label: translate(op.display), value: op.value }));
+ * @example const options = OPERATORS.map(({ value, display }) => ({ value, translationKey: display }));
  */
 export const OPERATORS: {
+  /** Stable filter operator identifier passed to the evaluator or an application's query API. */
   value: Operator;
+  /** Inner SVG markup for a 24-by-24 viewBox; contains no outer svg element. */
   icon: string;
+  /** Application translation key for the operator label; this package does not translate it. */
   display: string;
 }[] = [
   {
