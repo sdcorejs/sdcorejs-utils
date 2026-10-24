@@ -25,11 +25,19 @@ import {
 
 export type { PropertyPathOptions } from '../internal/property-path';
 
+/**
+ * String-keyed record whose values must be narrowed before use. This is a compile-time
+ * shape only: use {@link isPlainObject} to check prototypes at runtime. Symbol keys are
+ * outside this type's index signature.
+ */
 export type PlainRecord = Record<string, unknown>;
 
 /** Options for bounded clone and merge traversal. */
 export interface ObjectTraversalOptions {
-  /** Maximum nested object/array depth. Defaults to `1_000`. */
+  /**
+   * Maximum recursive depth, with the root at depth 0. Defaults to 1,000;
+   * must be a positive safe integer. Exceeding the limit throws {@link ValidationError}.
+   */
   maxDepth?: number;
 }
 
@@ -45,14 +53,22 @@ const objectMaxDepth = (options: ObjectTraversalOptions): number => {
 
 /** Options controlling bounded offset pagination. */
 export interface FetchAllByPagingOptions {
-  /** Hard cap protecting against non-terminating endpoints. Defaults to `10_000`. */
+  /**
+   * Maximum number of sequential requests, including page 0. Defaults to 10,000;
+   * must be a positive safe integer. Exceeding the cap rejects with {@link PagingLimitError}.
+   */
   maxPages?: number;
   /**
-   * Optional cancellation signal raced against every request and passed to the
-   * callback as its third argument.
+   * Optional cancellation signal, raced against each page request and passed as the
+   * callback's third argument. Abort rejects with `signal.reason` when present.
+   * The callback must honor the signal to cancel its transport; racing alone cannot stop the network request.
    */
   signal?: AbortSignal;
-  /** Policy when `total` changes after the first page. Defaults to `'error'`. */
+  /**
+   * How to handle totals changing after page 0. Defaults to `'error'`, which rejects.
+   * `'latest'` adopts each new total, but still rejects totals below the collected count,
+   * overfull responses, and empty pages that cannot reach the total.
+   */
   totalChangePolicy?: 'error' | 'latest';
 }
 
@@ -108,6 +124,22 @@ const awaitPageWithAbort = <T>(request: PromiseLike<T>, signal?: AbortSignal): P
  * bounded by the declared total, empty-page checks, the safe page range, and `maxPages`.
  * When configured, the abort signal races each page promise and is passed to the
  * callback for transport cancellation.
+ *
+ * @typeParam T - Item type, returned by reference without cloning or deduplication.
+ * @param func - Sequential page loader receiving `(pageSize, pageNumber, signal?)`.
+ *   Return an items array no longer than pageSize and a nonnegative safe-integer total.
+ * @param defaultPageSize - Positive safe integer requested on every page; defaults to 1,000.
+ * @param options - Request cap, abort signal, and total-change policy.
+ * @returns A Promise of all items in page order. Failures reject without returning a partial array.
+ * @throws {ValidationError} Rejects invalid options or a non-callable loader.
+ * @throws {PagingResponseError} Rejects malformed/inconsistent responses or lack of progress.
+ * @throws {PagingLimitError} Rejects if the request cap or safe page-number range is exceeded.
+ * @throws Rejects loader failures and abort reasons unchanged.
+ * @example
+ * const all = await fetchAllByPaging(async (pageSize, pageNumber) => ({
+ *   items: [1, 2, 3].slice(pageNumber * pageSize, (pageNumber + 1) * pageSize),
+ *   total: 3,
+ * }), 2); // [1, 2, 3]
  */
 export const fetchAllByPaging = async <T = unknown>(
   func: (
@@ -180,13 +212,28 @@ export const fetchAllByPaging = async <T = unknown>(
   }
 };
 
-/** Generates a short time/random identifier; it is neither a UUID nor cryptographically secure. */
+/**
+ * Generates a short time/random identifier; it is neither a UUID nor cryptographically secure.
+ *
+ * @param prefix - Optional text prepended with `_`; empty or nullish values add no prefix.
+ * @returns Base-36 time plus up to five pseudorandom characters. Length is not fixed,
+ *   and collisions are possible; use {@link generateUuid} when secure randomness is required.
+ * @example randomId('row'); // e.g. 'row_m9abc123xyz'
+ */
 export const randomId = (prefix?: string | null): string => {
   const id = `${Date.now().toString(36)}${Math.random().toString(36).substring(2, 7)}`;
   return prefix ? `${prefix}_${id}` : id;
 };
 
-/** Parses a query string into an own-property record and rejects prototype-sensitive keys. */
+/**
+ * Parses a query string into an own-property record and rejects prototype-sensitive keys.
+ *
+ * @param queryString - URL query component, optionally starting with `?`; defaults to empty.
+ *   This is not a full-URL parser. `+` becomes a space and percent escapes follow URLSearchParams.
+ * @returns A new record of decoded strings; the last occurrence wins for duplicate keys.
+ * @throws {UnsafeObjectKeyError} For prototype-sensitive decoded keys such as `__proto__`.
+ * @example parseQueryParams('?name=An+Nguyen&tag=a&tag=b'); // { name: 'An Nguyen', tag: 'b' }
+ */
 export const parseQueryParams = (queryString?: string): Record<string, string> => {
   const params = new URLSearchParams(queryString || '');
   const result: Record<string, string> = {};
@@ -196,7 +243,14 @@ export const parseQueryParams = (queryString?: string): Record<string, string> =
 
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-/** Generates a lowercase RFC 4122/9562-compatible UUID v4 or throws when secure randomness is unavailable. */
+/**
+ * Generates a lowercase RFC 4122/9562-compatible UUID v4 or throws when secure randomness is unavailable.
+ *
+ * @returns A fresh lowercase UUID v4 string using `crypto.randomUUID` or `getRandomValues`.
+ *   No Math.random fallback is used; random generation does not mathematically guarantee uniqueness.
+ * @throws {SecureRandomUnavailableError} If neither secure source works.
+ * @example const id = generateUuid(); // e.g. '550e8400-e29b-41d4-a716-446655440000'
+ */
 export const generateUuid = (): string => {
   const cryptoApi = globalThis.crypto;
   if (!cryptoApi) throw new SecureRandomUnavailableError();
@@ -221,14 +275,33 @@ export const generateUuid = (): string => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
-/** Safely reads a dot/bracket path through own data properties only. Getters are skipped by default. */
+/**
+ * Safely reads a dot/bracket path through own data properties only. Getters are skipped by default.
+ *
+ * @typeParam T - Expected result type; does not validate the resolved value's runtime type.
+ * @param obj - Root value; nullish/missing intermediate values resolve to `undefined`.
+ * @param path - Dot or numeric/quoted bracket path, e.g. `items[0].name`.
+ * @param options - Defaults to a maximum of 32 path segments and no getter execution.
+ * @returns The original referenced value, or `undefined` for missing/inherited/skipped properties.
+ * @throws {UnsafePropertyPathError} For invalid, forbidden, or over-depth paths/options.
+ * @throws Propagates opted-in getter or Proxy trap errors.
+ * @example getNestedValue<string>({ items: [{ name: 'An' }] }, 'items[0].name'); // 'An'
+ */
 export const getNestedValue = <T = unknown>(
   obj: unknown,
   path: string,
   options: PropertyPathOptions = {},
 ): T | undefined => getOwnPropertyPath<T>(obj, path, options);
 
-/** Checks whether a value is a plain object literal or a null-prototype record. */
+/**
+ * Checks whether a value is a plain object literal or a null-prototype record.
+ *
+ * @param value - Value to inspect without coercion.
+ * @returns Whether the prototype is this realm's Object.prototype or null; excludes arrays,
+ *   Date/Map/Set, class instances, and ordinary objects from a different realm.
+ * @throws Propagates Proxy getPrototypeOf failures.
+ * @example isPlainObject(Object.create(null)); // true
+ */
 export const isPlainObject = (value: unknown): value is PlainRecord => {
   if (typeof value !== 'object' || value === null) return false;
   const prototype = Object.getPrototypeOf(value);
@@ -306,6 +379,18 @@ const cloneValue = <T>(
  * other non-plain leaves retain their original reference for v1.x compatibility.
  * Custom-prototype records are sanitized to ordinary own-property records. Excessive
  * acyclic depth throws a typed validation error instead of overflowing the stack.
+ *
+ * @typeParam T - Input/output type; copying does not perform schema validation.
+ * @param value - Graph to copy. Arrays and record-like objects are recursively copied;
+ *   Date, Map, Set, class instances, functions, and primitive leaves retain their values/references.
+ * @param options - Maximum traversal depth; defaults to 1,000.
+ * @returns A graph preserving cycles, repeated references, and sparse array holes within
+ *   copied portions. Own enumerable string data properties are copied; custom record prototypes
+ *   are sanitized, while null prototypes are retained. Inputs are not mutated.
+ * @throws {UnsafeObjectKeyError} For prohibited own keys in copied records/arrays.
+ * @throws {ValidationError} For invalid/exceeded depth or accessor properties.
+ * @throws Propagates Proxy inspection failures.
+ * @example const copied = clone({ items: [{ id: 1 }] });
  */
 export const clone = <T>(value: T, options: ObjectTraversalOptions = {}): T =>
   cloneValue(value, new WeakMap(), undefined, 0, objectMaxDepth(options));
@@ -390,6 +475,18 @@ const mergeValue = <T>(
  * Deeply merges plain records. Arrays replace and clone; `undefined` inherits the
  * default; `null` overrides. Date, Map, Set, and class instances are non-plain
  * leaves and retain the selected reference. Cyclic plain graphs are preserved.
+ *
+ * @typeParam T - Expected result type, shared by the default and override inputs.
+ * @param defaultValue - Base graph; own enumerable string data properties supply defaults.
+ * @param overrideValue - Override graph. `undefined` inherits the default; null replaces it;
+ *   arrays replace rather than concatenate. Record-like objects merge recursively.
+ * @param options - Maximum traversal depth; defaults to 1,000.
+ * @returns A merged graph without mutating inputs. Copied portions preserve cycles;
+ *   non-plain leaf objects remain shared references. Null-prototype defaults retain that prototype.
+ * @throws {UnsafeObjectKeyError} For prohibited keys in traversed records/arrays.
+ * @throws {ValidationError} For invalid/exceeded depth or accessors.
+ * @throws Propagates Proxy inspection failures.
+ * @example merge({ page: 1, tags: ['old'] }, { page: 2, tags: ['new'] }); // { page: 2, tags: ['new'] }
  */
 export const merge = <T>(
   defaultValue: T,
@@ -405,59 +502,419 @@ export const merge = <T>(
     maxDepth: objectMaxDepth(options),
   }, 0);
 
-/** Folds partial records from left to right using {@link merge}. */
+/**
+ * Folds partial records from left to right using {@link merge}.
+ *
+ * @typeParam T - Expected complete output type; partial inputs do not guarantee all required fields exist.
+ * @param sources - Partial records, applied left to right; later defined values win.
+ * @returns A new merged record, or `{}` for no sources. Arrays replace; inputs are not mutated.
+ * @throws Propagates unsafe-key, accessor, and default-depth errors from {@link merge}.
+ * @example deepMerge<{ a: number; b: number }>({ a: 1 }, { b: 2 }); // { a: 1, b: 2 }
+ */
 export const deepMerge = <T>(...sources: Partial<T>[]): T =>
   sources.reduce<PlainRecord>((accumulator, source) => merge(accumulator, source as PlainRecord), {}) as T;
 
-/** Object-focused deterministic serialization, hashing, traversal, cloning, and merge helpers. */
+/**
+ * Object-focused deterministic serialization, hashing, traversal, cloning, and merge helpers.
+ *
+ * @example
+ * import { ObjectUtilities } from '@sdcorejs/utils/fns';
+ * ObjectUtilities.clone({ id: 1 }); // { id: 1 }
+ */
 export const ObjectUtilities = {
+  /**
+   * Deterministically serializes JSON-compatible values, sorting plain-object keys.
+   *
+   * `Date` is retained for v1.x compatibility and encodes as its ISO string; a `Date`
+   * holding `NaN` encodes as `"Invalid Date"`. The function rejects `undefined`, functions,
+   * symbols, bigint, non-finite numbers, sparse arrays, accessors, class instances,
+   * binary/collection objects, and cycles. Negative zero follows JSON semantics and
+   * encodes as `0`.
+   *
+   * @param value - JSON primitives, dense arrays, plain records, or Dates. Valid Dates become ISO
+   *   strings; invalid Dates become `'Invalid Date'`. These encodings can collide with literal strings.
+   *   Undefined, bigint, non-finite numbers, functions, symbols, accessors, sparse arrays,
+   *   class instances, and collections are unsupported. Object keys sort by UTF-16 code units.
+   * @param options - Recursion limit, default 100. Inputs are not mutated and `toJSON` is not called.
+   * @returns Deterministic JSON text; negative zero is represented as zero.
+   * @throws {CircularReferenceError} For cyclic graphs (non-cyclic shared references are allowed).
+   * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys.
+   * @example stableStringify({ b: 2, a: 1 }); // '{"a":1,"b":2}'
+   */
   stableStringify,
-  /** Encodes supported extended JavaScript values with deterministic, collision-safe tags. */
+  /**
+   * Canonically encodes supported extended JavaScript values with collision-safe type tags.
+   * Object keys, map entries, and set values are deterministically ordered. A `Date` holding
+   * `NaN` carries its own tag payload, alongside the existing tags for `NaN`, the infinities,
+   * negative zero, and array holes. Functions, symbols, class instances, accessors, Blob/File
+   * values, and cycles are rejected.
+   *
+   * @param value - Extended data, including undefined, bigint, non-finite numbers, negative zero,
+   *   sparse arrays, Dates, RegExp, Map, Set, ArrayBuffer, and supported typed views. Functions,
+   *   symbols, class instances, Blob/File, accessors, and cycles are rejected.
+   * @param options - Recursion limit, default 100; inputs are not mutated.
+   * @returns Deterministic JSON text with type tags. Record keys and encoded Map/Set entries
+   *   are sorted, preserving type distinctions absent from ordinary JSON. This package exposes
+   *   no inverse decoder, and the representation should not be treated as ordinary application JSON.
+   * @throws {CircularReferenceError} For cyclic graphs.
+   * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys.
+   * @example canonicalStringify({ b: 2, a: 1 }) === canonicalStringify({ a: 1, b: 2 }); // true
+   */
   canonicalStringify,
   /**
-   * Retains the legacy collision-prone 32-bit hash for supported simple values.
-   * @deprecated Use `hash32` for accurate non-cryptographic naming or
-   * `sha256Canonical` for cryptographic canonical hashing. Unsupported values now throw.
+   * Legacy alias of {@link hash32}, including its collision-prone compatibility fallback.
+   *
+   * @deprecated Use {@link hash32} for explicit non-cryptographic naming, or {@link sha256Canonical}
+   *   for a cryptographic digest of supported canonical data. Those choices have different guarantees.
+   * @param value - Value passed unchanged to {@link hash32}.
+   * @returns The same `h`-prefixed decimal compatibility hash.
+   * @throws Propagates failures from {@link hash32}.
+   * @example hash({ a: 1 }) === hash32({ a: 1 }); // true
    */
   hash,
-  /** Returns a fast, collision-prone, non-cryptographic compatibility hash. */
+  /**
+   * Computes the legacy, non-cryptographic 32-bit rolling hash of a stable representation.
+   * Uses {@link stableStringify} first, then a compatibility serializer with placeholders
+   * for some unsupported values and circular references. Blob/File fallback hashes metadata,
+   * not file bytes; unrelated values can collide even before the 32-bit hash is computed.
+   *
+   * @param value - Value to hash. Compatibility fallback does not make every possible input safe or supported.
+   * @returns `h` followed by the absolute signed 32-bit hash in decimal. Do not use for integrity,
+   *   authentication, unique IDs, or collision-free cache keys.
+   * @throws Propagates failures that remain in fallback traversal, including unsafe keys and inspection errors.
+   * @example hash32({ a: 1 }) === hash32({ a: 1 }); // true
+   */
   hash32,
-  /** Returns the lowercase hexadecimal SHA-256 of a canonical value encoding. */
+  /**
+   * Canonicalizes a value and returns its SHA-256 digest as lowercase hexadecimal.
+   *
+   * @param value - Data supported by {@link canonicalStringify}; type distinctions affect the hash.
+   * @param options - Canonical serialization depth limit, default 100.
+   * @returns A Promise of 64 lowercase hexadecimal characters, hashing UTF-8 canonical text.
+   *   This is an unkeyed digest, not a signature or a password-hashing function.
+   * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+   * @throws Rejects serialization errors or runtime digest failures.
+   * @example const digest = await sha256Canonical({ b: 2, a: 1 }); // 64 lowercase hexadecimal characters.
+   */
   sha256Canonical,
-  /** Hashes actual Blob/File bytes asynchronously with SHA-256. */
+  /**
+   * Reads Blob/File bytes asynchronously and returns their SHA-256 digest as lowercase hexadecimal.
+   *
+   * @param blob - A Blob or File instance recognized by this runtime; its name/type are not hashed.
+   * @returns A Promise of the bytes' 64-character lowercase hexadecimal SHA-256 digest.
+   *   Reads the entire payload into memory; identical bytes yield identical digests regardless of metadata.
+   * @throws {UnsupportedSerializationTypeError} Rejects inputs that are not Blob instances.
+   * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+   * @throws Rejects Blob reading or runtime digest failures.
+   * @example await sha256Blob(new Blob(['hello'])); // '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+   */
   sha256Blob,
+  /**
+   * Parses a query string into an own-property record and rejects prototype-sensitive keys.
+   *
+   * @param queryString - URL query component, optionally starting with `?`; defaults to empty.
+   *   This is not a full-URL parser. `+` becomes a space and percent escapes follow URLSearchParams.
+   * @returns A new record of decoded strings; the last occurrence wins for duplicate keys.
+   * @throws {UnsafeObjectKeyError} For prototype-sensitive decoded keys such as `__proto__`.
+   * @example parseQueryParams('?name=An+Nguyen&tag=a&tag=b'); // { name: 'An Nguyen', tag: 'b' }
+   */
   parseQueryParams,
+  /**
+   * Safely reads a dot/bracket path through own data properties only. Getters are skipped by default.
+   *
+   * @typeParam T - Expected result type; does not validate the resolved value's runtime type.
+   * @param obj - Root value; nullish/missing intermediate values resolve to `undefined`.
+   * @param path - Dot or numeric/quoted bracket path, e.g. `items[0].name`.
+   * @param options - Defaults to a maximum of 32 path segments and no getter execution.
+   * @returns The original referenced value, or `undefined` for missing/inherited/skipped properties.
+   * @throws {UnsafePropertyPathError} For invalid, forbidden, or over-depth paths/options.
+   * @throws Propagates opted-in getter or Proxy trap errors.
+   * @example getNestedValue<string>({ items: [{ name: 'An' }] }, 'items[0].name'); // 'An'
+   */
   getNestedValue,
+  /**
+   * Checks whether a value is a plain object literal or a null-prototype record.
+   *
+   * @param value - Value to inspect without coercion.
+   * @returns Whether the prototype is this realm's Object.prototype or null; excludes arrays,
+   *   Date/Map/Set, class instances, and ordinary objects from a different realm.
+   * @throws Propagates Proxy getPrototypeOf failures.
+   * @example isPlainObject(Object.create(null)); // true
+   */
   isPlainObject,
+  /**
+   * Deeply clones arrays and record-like objects while preserving cycles and null prototypes.
+   * Sparse-array holes are preserved. Date, Map, Set, class instances, functions, and
+   * other non-plain leaves retain their original reference for v1.x compatibility.
+   * Custom-prototype records are sanitized to ordinary own-property records. Excessive
+   * acyclic depth throws a typed validation error instead of overflowing the stack.
+   *
+   * @typeParam T - Input/output type; copying does not perform schema validation.
+   * @param value - Graph to copy. Arrays and record-like objects are recursively copied;
+   *   Date, Map, Set, class instances, functions, and primitive leaves retain their values/references.
+   * @param options - Maximum traversal depth; defaults to 1,000.
+   * @returns A graph preserving cycles, repeated references, and sparse array holes within
+   *   copied portions. Own enumerable string data properties are copied; custom record prototypes
+   *   are sanitized, while null prototypes are retained. Inputs are not mutated.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys in copied records/arrays.
+   * @throws {ValidationError} For invalid/exceeded depth or accessor properties.
+   * @throws Propagates Proxy inspection failures.
+   * @example const copied = clone({ items: [{ id: 1 }] });
+   */
   clone,
+  /**
+   * Deeply merges plain records. Arrays replace and clone; `undefined` inherits the
+   * default; `null` overrides. Date, Map, Set, and class instances are non-plain
+   * leaves and retain the selected reference. Cyclic plain graphs are preserved.
+   *
+   * @typeParam T - Expected result type, shared by the default and override inputs.
+   * @param defaultValue - Base graph; own enumerable string data properties supply defaults.
+   * @param overrideValue - Override graph. `undefined` inherits the default; null replaces it;
+   *   arrays replace rather than concatenate. Record-like objects merge recursively.
+   * @param options - Maximum traversal depth; defaults to 1,000.
+   * @returns A merged graph without mutating inputs. Copied portions preserve cycles;
+   *   non-plain leaf objects remain shared references. Null-prototype defaults retain that prototype.
+   * @throws {UnsafeObjectKeyError} For prohibited keys in traversed records/arrays.
+   * @throws {ValidationError} For invalid/exceeded depth or accessors.
+   * @throws Propagates Proxy inspection failures.
+   * @example merge({ page: 1, tags: ['old'] }, { page: 2, tags: ['new'] }); // { page: 2, tags: ['new'] }
+   */
   merge,
+  /**
+   * Folds partial records from left to right using {@link merge}.
+   *
+   * @typeParam T - Expected complete output type; partial inputs do not guarantee all required fields exist.
+   * @param sources - Partial records, applied left to right; later defined values win.
+   * @returns A new merged record, or `{}` for no sources. Arrays replace; inputs are not mutated.
+   * @throws Propagates unsafe-key, accessor, and default-depth errors from {@link merge}.
+   * @example deepMerge<{ a: number; b: number }>({ a: 1 }, { b: 2 }); // { a: 1, b: 2 }
+   */
   deepMerge,
 };
 
-/** General-purpose pagination, ID, serialization, URL-query, and object helpers. */
+/**
+ * General-purpose pagination, ID, serialization, URL-query, and object helpers.
+ *
+ * @example
+ * import { Utilities } from '@sdcorejs/utils/fns';
+ * Utilities.parseQueryParams('page=2'); // { page: '2' }
+ */
 export const Utilities = {
+  /**
+   * Exhausts a strictly zero-based paginated endpoint and returns all items in order.
+   * Responses are validated on every page; later failures throw instead of discarding
+   * already fetched data. Callback requests always start at page `0` and increment
+   * consecutively. Duplicate item values remain lossless because a repeated payload is
+   * not proof that an offset endpoint repeated the same logical page. Termination is
+   * bounded by the declared total, empty-page checks, the safe page range, and `maxPages`.
+   * When configured, the abort signal races each page promise and is passed to the
+   * callback for transport cancellation.
+   *
+   * @typeParam T - Item type, returned by reference without cloning or deduplication.
+   * @param func - Sequential page loader receiving `(pageSize, pageNumber, signal?)`.
+   *   Return an items array no longer than pageSize and a nonnegative safe-integer total.
+   * @param defaultPageSize - Positive safe integer requested on every page; defaults to 1,000.
+   * @param options - Request cap, abort signal, and total-change policy.
+   * @returns A Promise of all items in page order. Failures reject without returning a partial array.
+   * @throws {ValidationError} Rejects invalid options or a non-callable loader.
+   * @throws {PagingResponseError} Rejects malformed/inconsistent responses or lack of progress.
+   * @throws {PagingLimitError} Rejects if the request cap or safe page-number range is exceeded.
+   * @throws Rejects loader failures and abort reasons unchanged.
+   * @example
+   * const all = await fetchAllByPaging(async (pageSize, pageNumber) => ({
+   *   items: [1, 2, 3].slice(pageNumber * pageSize, (pageNumber + 1) * pageSize),
+   *   total: 3,
+   * }), 2); // [1, 2, 3]
+   */
   fetchAllByPaging,
+  /**
+   * Generates a short time/random identifier; it is neither a UUID nor cryptographically secure.
+   *
+   * @param prefix - Optional text prepended with `_`; empty or nullish values add no prefix.
+   * @returns Base-36 time plus up to five pseudorandom characters. Length is not fixed,
+   *   and collisions are possible; use {@link generateUuid} when secure randomness is required.
+   * @example randomId('row'); // e.g. 'row_m9abc123xyz'
+   */
   randomId,
+  /**
+   * Deterministically serializes JSON-compatible values, sorting plain-object keys.
+   *
+   * `Date` is retained for v1.x compatibility and encodes as its ISO string; a `Date`
+   * holding `NaN` encodes as `"Invalid Date"`. The function rejects `undefined`, functions,
+   * symbols, bigint, non-finite numbers, sparse arrays, accessors, class instances,
+   * binary/collection objects, and cycles. Negative zero follows JSON semantics and
+   * encodes as `0`.
+   *
+   * @param value - JSON primitives, dense arrays, plain records, or Dates. Valid Dates become ISO
+   *   strings; invalid Dates become `'Invalid Date'`. These encodings can collide with literal strings.
+   *   Undefined, bigint, non-finite numbers, functions, symbols, accessors, sparse arrays,
+   *   class instances, and collections are unsupported. Object keys sort by UTF-16 code units.
+   * @param options - Recursion limit, default 100. Inputs are not mutated and `toJSON` is not called.
+   * @returns Deterministic JSON text; negative zero is represented as zero.
+   * @throws {CircularReferenceError} For cyclic graphs (non-cyclic shared references are allowed).
+   * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys.
+   * @example stableStringify({ b: 2, a: 1 }); // '{"a":1,"b":2}'
+   */
   stableStringify,
-  /** Encodes supported extended JavaScript values with deterministic, collision-safe tags. */
+  /**
+   * Canonically encodes supported extended JavaScript values with collision-safe type tags.
+   * Object keys, map entries, and set values are deterministically ordered. A `Date` holding
+   * `NaN` carries its own tag payload, alongside the existing tags for `NaN`, the infinities,
+   * negative zero, and array holes. Functions, symbols, class instances, accessors, Blob/File
+   * values, and cycles are rejected.
+   *
+   * @param value - Extended data, including undefined, bigint, non-finite numbers, negative zero,
+   *   sparse arrays, Dates, RegExp, Map, Set, ArrayBuffer, and supported typed views. Functions,
+   *   symbols, class instances, Blob/File, accessors, and cycles are rejected.
+   * @param options - Recursion limit, default 100; inputs are not mutated.
+   * @returns Deterministic JSON text with type tags. Record keys and encoded Map/Set entries
+   *   are sorted, preserving type distinctions absent from ordinary JSON. This package exposes
+   *   no inverse decoder, and the representation should not be treated as ordinary application JSON.
+   * @throws {CircularReferenceError} For cyclic graphs.
+   * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys.
+   * @example canonicalStringify({ b: 2, a: 1 }) === canonicalStringify({ a: 1, b: 2 }); // true
+   */
   canonicalStringify,
   /**
-   * Retains the legacy collision-prone 32-bit hash for supported simple values.
-   * @deprecated Use `hash32` for accurate non-cryptographic naming or
-   * `sha256Canonical` for cryptographic canonical hashing. Unsupported values now throw.
+   * Legacy alias of {@link hash32}, including its collision-prone compatibility fallback.
+   *
+   * @deprecated Use {@link hash32} for explicit non-cryptographic naming, or {@link sha256Canonical}
+   *   for a cryptographic digest of supported canonical data. Those choices have different guarantees.
+   * @param value - Value passed unchanged to {@link hash32}.
+   * @returns The same `h`-prefixed decimal compatibility hash.
+   * @throws Propagates failures from {@link hash32}.
+   * @example hash({ a: 1 }) === hash32({ a: 1 }); // true
    */
   hash,
-  /** Returns a fast, collision-prone, non-cryptographic compatibility hash. */
+  /**
+   * Computes the legacy, non-cryptographic 32-bit rolling hash of a stable representation.
+   * Uses {@link stableStringify} first, then a compatibility serializer with placeholders
+   * for some unsupported values and circular references. Blob/File fallback hashes metadata,
+   * not file bytes; unrelated values can collide even before the 32-bit hash is computed.
+   *
+   * @param value - Value to hash. Compatibility fallback does not make every possible input safe or supported.
+   * @returns `h` followed by the absolute signed 32-bit hash in decimal. Do not use for integrity,
+   *   authentication, unique IDs, or collision-free cache keys.
+   * @throws Propagates failures that remain in fallback traversal, including unsafe keys and inspection errors.
+   * @example hash32({ a: 1 }) === hash32({ a: 1 }); // true
+   */
   hash32,
-  /** Returns the lowercase hexadecimal SHA-256 of a canonical value encoding. */
+  /**
+   * Canonicalizes a value and returns its SHA-256 digest as lowercase hexadecimal.
+   *
+   * @param value - Data supported by {@link canonicalStringify}; type distinctions affect the hash.
+   * @param options - Canonical serialization depth limit, default 100.
+   * @returns A Promise of 64 lowercase hexadecimal characters, hashing UTF-8 canonical text.
+   *   This is an unkeyed digest, not a signature or a password-hashing function.
+   * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+   * @throws Rejects serialization errors or runtime digest failures.
+   * @example const digest = await sha256Canonical({ b: 2, a: 1 }); // 64 lowercase hexadecimal characters.
+   */
   sha256Canonical,
-  /** Hashes actual Blob/File bytes asynchronously with SHA-256. */
+  /**
+   * Reads Blob/File bytes asynchronously and returns their SHA-256 digest as lowercase hexadecimal.
+   *
+   * @param blob - A Blob or File instance recognized by this runtime; its name/type are not hashed.
+   * @returns A Promise of the bytes' 64-character lowercase hexadecimal SHA-256 digest.
+   *   Reads the entire payload into memory; identical bytes yield identical digests regardless of metadata.
+   * @throws {UnsupportedSerializationTypeError} Rejects inputs that are not Blob instances.
+   * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+   * @throws Rejects Blob reading or runtime digest failures.
+   * @example await sha256Blob(new Blob(['hello'])); // '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+   */
   sha256Blob,
+  /**
+   * Parses a query string into an own-property record and rejects prototype-sensitive keys.
+   *
+   * @param queryString - URL query component, optionally starting with `?`; defaults to empty.
+   *   This is not a full-URL parser. `+` becomes a space and percent escapes follow URLSearchParams.
+   * @returns A new record of decoded strings; the last occurrence wins for duplicate keys.
+   * @throws {UnsafeObjectKeyError} For prototype-sensitive decoded keys such as `__proto__`.
+   * @example parseQueryParams('?name=An+Nguyen&tag=a&tag=b'); // { name: 'An Nguyen', tag: 'b' }
+   */
   parseQueryParams,
+  /**
+   * Generates a lowercase RFC 4122/9562-compatible UUID v4 or throws when secure randomness is unavailable.
+   *
+   * @returns A fresh lowercase UUID v4 string using `crypto.randomUUID` or `getRandomValues`.
+   *   No Math.random fallback is used; random generation does not mathematically guarantee uniqueness.
+   * @throws {SecureRandomUnavailableError} If neither secure source works.
+   * @example const id = generateUuid(); // e.g. '550e8400-e29b-41d4-a716-446655440000'
+   */
   generateUuid,
+  /**
+   * Safely reads a dot/bracket path through own data properties only. Getters are skipped by default.
+   *
+   * @typeParam T - Expected result type; does not validate the resolved value's runtime type.
+   * @param obj - Root value; nullish/missing intermediate values resolve to `undefined`.
+   * @param path - Dot or numeric/quoted bracket path, e.g. `items[0].name`.
+   * @param options - Defaults to a maximum of 32 path segments and no getter execution.
+   * @returns The original referenced value, or `undefined` for missing/inherited/skipped properties.
+   * @throws {UnsafePropertyPathError} For invalid, forbidden, or over-depth paths/options.
+   * @throws Propagates opted-in getter or Proxy trap errors.
+   * @example getNestedValue<string>({ items: [{ name: 'An' }] }, 'items[0].name'); // 'An'
+   */
   getNestedValue,
+  /**
+   * Checks whether a value is a plain object literal or a null-prototype record.
+   *
+   * @param value - Value to inspect without coercion.
+   * @returns Whether the prototype is this realm's Object.prototype or null; excludes arrays,
+   *   Date/Map/Set, class instances, and ordinary objects from a different realm.
+   * @throws Propagates Proxy getPrototypeOf failures.
+   * @example isPlainObject(Object.create(null)); // true
+   */
   isPlainObject,
+  /**
+   * Deeply clones arrays and record-like objects while preserving cycles and null prototypes.
+   * Sparse-array holes are preserved. Date, Map, Set, class instances, functions, and
+   * other non-plain leaves retain their original reference for v1.x compatibility.
+   * Custom-prototype records are sanitized to ordinary own-property records. Excessive
+   * acyclic depth throws a typed validation error instead of overflowing the stack.
+   *
+   * @typeParam T - Input/output type; copying does not perform schema validation.
+   * @param value - Graph to copy. Arrays and record-like objects are recursively copied;
+   *   Date, Map, Set, class instances, functions, and primitive leaves retain their values/references.
+   * @param options - Maximum traversal depth; defaults to 1,000.
+   * @returns A graph preserving cycles, repeated references, and sparse array holes within
+   *   copied portions. Own enumerable string data properties are copied; custom record prototypes
+   *   are sanitized, while null prototypes are retained. Inputs are not mutated.
+   * @throws {UnsafeObjectKeyError} For prohibited own keys in copied records/arrays.
+   * @throws {ValidationError} For invalid/exceeded depth or accessor properties.
+   * @throws Propagates Proxy inspection failures.
+   * @example const copied = clone({ items: [{ id: 1 }] });
+   */
   clone,
+  /**
+   * Deeply merges plain records. Arrays replace and clone; `undefined` inherits the
+   * default; `null` overrides. Date, Map, Set, and class instances are non-plain
+   * leaves and retain the selected reference. Cyclic plain graphs are preserved.
+   *
+   * @typeParam T - Expected result type, shared by the default and override inputs.
+   * @param defaultValue - Base graph; own enumerable string data properties supply defaults.
+   * @param overrideValue - Override graph. `undefined` inherits the default; null replaces it;
+   *   arrays replace rather than concatenate. Record-like objects merge recursively.
+   * @param options - Maximum traversal depth; defaults to 1,000.
+   * @returns A merged graph without mutating inputs. Copied portions preserve cycles;
+   *   non-plain leaf objects remain shared references. Null-prototype defaults retain that prototype.
+   * @throws {UnsafeObjectKeyError} For prohibited keys in traversed records/arrays.
+   * @throws {ValidationError} For invalid/exceeded depth or accessors.
+   * @throws Propagates Proxy inspection failures.
+   * @example merge({ page: 1, tags: ['old'] }, { page: 2, tags: ['new'] }); // { page: 2, tags: ['new'] }
+   */
   merge,
+  /**
+   * Folds partial records from left to right using {@link merge}.
+   *
+   * @typeParam T - Expected complete output type; partial inputs do not guarantee all required fields exist.
+   * @param sources - Partial records, applied left to right; later defined values win.
+   * @returns A new merged record, or `{}` for no sources. Arrays replace; inputs are not mutated.
+   * @throws Propagates unsafe-key, accessor, and default-depth errors from {@link merge}.
+   * @example deepMerge<{ a: number; b: number }>({ a: 1 }, { b: 2 }); // { a: 1, b: 2 }
+   */
   deepMerge,
 };

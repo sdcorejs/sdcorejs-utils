@@ -129,7 +129,18 @@ const parseTemporalString = (value: string, timeZone?: string): number | null =>
   return null;
 };
 
-/** Converts a strict date representation to epoch milliseconds, or `null` when unresolved. */
+/**
+ * Converts a strict date representation to epoch milliseconds, or `null` when unresolved.
+ *
+ * @param value - Valid Date, explicit numeric timestamp (including numeric string), or supported
+ *   date text. Strings must have no surrounding whitespace; booleans/objects/nullish values fail.
+ * @param options - Numeric unit and optional zone for zone-less text. A numeric unit is required
+ *   unless legacy inference is explicitly enabled. ISO offsets already determine the instant.
+ * @returns Epoch milliseconds or null for unresolvable/invalid values. Numeric fractional
+ *   milliseconds can remain fractional; inputs are not mutated.
+ * @example toEpoch(1704067200, { timestampUnit: 'seconds' }); // 1704067200000
+ * @example toEpoch(1704067200); // null
+ */
 export const toEpoch = (value: unknown, options: ToEpochOptions = {}): number | null => {
   if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.getTime() : null;
   if (typeof value === 'number') {
@@ -238,7 +249,16 @@ const compareValues = (
   return { valid: true, order: 0, equal: true };
 };
 
-/** Builds a validated relative-date specification. */
+/**
+ * Builds a validated relative-date specification.
+ *
+ * @param amount - Strictly positive safe-integer magnitude; zero and negative values are rejected.
+ * @param direction - `'previous'` subtracts; `'next'` adds.
+ * @param unit - `'hour'`, `'day'`, `'week'`, or `'month'`.
+ * @returns A new validated relative-date specification; no clock is read until resolution.
+ * @throws {FilterValidationError} For invalid amount, direction, or unit.
+ * @example relativeDate(7, 'previous', 'day'); // { amount: 7, direction: 'previous', unit: 'day' }
+ */
 export const relativeDate = (
   amount: number,
   direction: DateRelative['direction'],
@@ -249,7 +269,15 @@ export const relativeDate = (
   return result;
 };
 
-/** Strict type guard for positive safe-integer relative-date specifications. */
+/**
+ * Strict type guard for positive safe-integer relative-date specifications.
+ *
+ * @param value - Candidate object; required fields must be own data properties, not getters/inherited values.
+ * @returns Whether amount is a positive safe integer and direction/unit are supported. Extra fields
+ *   are not rejected, and this predicate does not prove resolution will fit the Date range.
+ * @throws Propagates Proxy inspection failures.
+ * @example isDateRelative({ amount: 1, direction: 'next', unit: 'month' }); // true
+ */
 export const isDateRelative = (value: unknown): value is DateRelative => {
   if (!isRecord(value)) return false;
   const amount = readOptionMap<unknown>(value, 'amount');
@@ -290,6 +318,15 @@ const resolveZonedRelativeDate = (relative: DateRelative, now: Date, timeZone: s
 /**
  * Resolves a relative-date specification using an optional deterministic reference time. With
  * `options.timeZone`, day/week/month steps use that zone's calendar and hour steps add elapsed hours.
+ *
+ * @param relative - Validated magnitude/direction/unit specification.
+ * @param now - Valid reference Date, default current instant; never mutated.
+ * @param options - Optional IANA zone. Day/week/month use midnight calendar arithmetic with
+ *   constrained month overflow. With no zone, hours use local-clock addHours; with a zone,
+ *   hours use exact elapsed time. Those hour results may differ at host-local DST transitions.
+ * @returns A new Date resolved from the reference and policy.
+ * @throws {FilterValidationError} For malformed specifications, invalid reference, or failed resolution.
+ * @example resolveRelativeDate(relativeDate(1, 'next', 'day'), new Date('2024-01-01T12:00:00Z'), { timeZone: 'UTC' }).toISOString(); // '2024-01-02T00:00:00.000Z'
  */
 export const resolveRelativeDate = (relative: DateRelative, now: Date = new Date(), options?: TimeZoneOptions): Date => {
   if (!isDateRelative(relative)) throw new FilterValidationError('Invalid relative-date specification');
@@ -506,6 +543,17 @@ const validateNode = <T>(
 /**
  * Validates and clones a filter definition before evaluation.
  * This is a data-selection helper, not an authorization boundary.
+ *
+ * @typeParam T - Entity type used to type field paths; no entity schema is validated here.
+ * @param filter - Untrusted filter definition. Validates operator-specific operands, paths,
+ *   dense arrays, own data properties, logical depth, and cycles before cloning.
+ * @param options - Type/unit maps and evaluation constraints; default logical depth is 32.
+ * @returns A new validated filter structure without mutating the source. The type brand is
+ *   compile-time evidence only; the returned graph is not frozen or an authorization token.
+ * @throws {FilterValidationError} For invalid shape, operands, limits, cycles, or unsupported options.
+ * @throws {UnsafePropertyPathError} For unsafe or over-depth field paths.
+ * @throws Propagates Proxy inspection failures.
+ * @example validateFilter<{ price: number }>({ field: 'price', operator: 'GREATER_THAN', data: 10 });
  */
 export const validateFilter = <T = unknown>(filter: unknown, options?: MatchOptions<T>): ValidatedFilter<T> => {
   const configuredMaxDepth = options?.maxDepth;
@@ -561,7 +609,18 @@ const resolveDataDetailed = (filter: FilterHasData, entity: unknown, options?: M
   }
 };
 
-/** Resolves a filter operand using safe own-property traversal for field references. */
+/**
+ * Resolves a filter operand using safe own-property traversal for field references.
+ *
+ * @param filter - Typed single-value filter; this helper does not first run validateFilter.
+ * @param entity - Source for `dataType: 'field'` own-property references; getters are skipped.
+ * @param options - Reference clock/zone and path limits; current clock is used when now is omitted.
+ * @returns Literal data, the referenced original value (undefined if missing), or a Date for
+ *   today/relative operands. Literal data is not cloned. Invalid today resolution can return null.
+ * @throws {UnsafePropertyPathError} For unsafe paths.
+ * @throws {FilterValidationError} For invalid relative-date resolution.
+ * @example resolveData({ field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' }, { cost: 10 }); // 10
+ */
 export const resolveData = (filter: FilterHasData, entity: unknown, options?: MatchOptions): unknown =>
   resolveDataDetailed(filter, entity, options).value;
 
@@ -666,15 +725,49 @@ const evaluateValidated = (filter: Filter, entity: unknown, options?: MatchOptio
   return evaluateHasData(filter as FilterHasData, entity, options);
 };
 
-/** Validates and evaluates one filter against an item; invalid item values deterministically do not match. */
+/**
+ * Validates and evaluates one filter against an item; invalid item values deterministically do not match.
+ *
+ * @typeParam T - Entity type; field-path types and optional declared types refer to this entity.
+ * @param item - Entity to inspect using own data properties; inherited fields/getters are ignored.
+ * @param filter - Definition validated before evaluation; malformed definitions throw.
+ * @param options - Explicit field types, numeric timestamp units, depth, null policy, clock, and zone.
+ * @returns Whether the entity matches. Invalid entity values are non-matches; text containment
+ *   is case-insensitive, BETWEEN includes both bounds, and logical groups short-circuit.
+ *   Empty AND matches and empty OR does not. No entity mutation occurs.
+ * @throws Propagates validation/path errors from validateFilter and errors encountered while resolving operands.
+ * @example evaluateFilter({ price: 20 }, { field: 'price', operator: 'GREATER_THAN', data: 10 }); // true
+ */
 export const evaluateFilter = <T = unknown>(item: T, filter: unknown, options?: MatchOptions<T>): boolean =>
   evaluateValidated(validateFilter<T>(filter, options), item, options as MatchOptions);
 
-/** Compatibility API retaining the historical `(filter, item, options)` argument order. */
+/**
+ * Compatibility API retaining the historical `(filter, item, options)` argument order.
+ *
+ * @typeParam T - Entity type being inspected.
+ * @param filter - Filter definition, validated before evaluation.
+ * @param item - Entity whose own data properties are read.
+ * @param options - Same evaluation rules and defaults as {@link evaluateFilter}.
+ * @returns Whether the item matches, with the same behavior as evaluateFilter(item, filter, options).
+ * @throws Propagates filter validation, path, and operand-resolution failures.
+ * @example evaluate({ field: 'id', operator: 'EQUAL', data: 1 }, { id: 1 }); // true
+ */
 export const evaluate = <T = unknown>(filter: Filter<T>, item: T, options?: MatchOptions<T>): boolean =>
   evaluateFilter(item, filter, options);
 
-/** Evaluates a top-level implicit-AND list. Empty lists match all items. Not an authorization control. */
+/**
+ * Evaluates a top-level implicit-AND list. Empty lists match all items. Not an authorization control.
+ *
+ * @typeParam T - Entity type used by each filter.
+ * @param filters - Dense list interpreted as AND; empty, null, or undefined runtime input matches all.
+ *   Stops at the first non-match, so later definitions are not validated after a short circuit.
+ * @param item - Entity inspected without mutation.
+ * @param options - Shared evaluation policies; see {@link MatchOptions}.
+ * @returns Whether every evaluated filter matches the entity.
+ * @throws {FilterValidationError} For malformed list shape or an evaluated invalid filter.
+ * @throws Propagates path and operand-resolution errors in evaluated filters.
+ * @example match([{ field: 'active', operator: 'EQUAL', data: true }], { active: true }); // true
+ */
 export const match = <T = unknown>(filters: Filter<T>[], item: T, options?: MatchOptions<T>): boolean => {
   if (filters === null || filters === undefined) return true;
   const entries = readDenseOwnDataArray(filters, 'filters');
@@ -685,18 +778,129 @@ export const match = <T = unknown>(filters: Filter<T>[], item: T, options?: Matc
   return true;
 };
 
-/** Validated client-side filtering helpers. Never use client filtering as an authorization boundary. */
+/**
+ * Validated client-side filtering helpers. Never use client filtering as an authorization boundary.
+ *
+ * @example
+ * import { FilterUtilities } from '@sdcorejs/utils/fns';
+ * FilterUtilities.evaluateFilter({ id: 1 }, { field: 'id', operator: 'EQUAL', data: 1 }); // true
+ */
 export const FilterUtilities = {
+  /**
+   * Evaluates a top-level implicit-AND list. Empty lists match all items. Not an authorization control.
+   *
+   * @typeParam T - Entity type used by each filter.
+   * @param filters - Dense list interpreted as AND; empty, null, or undefined runtime input matches all.
+   *   Stops at the first non-match, so later definitions are not validated after a short circuit.
+   * @param item - Entity inspected without mutation.
+   * @param options - Shared evaluation policies; see {@link MatchOptions}.
+   * @returns Whether every evaluated filter matches the entity.
+   * @throws {FilterValidationError} For malformed list shape or an evaluated invalid filter.
+   * @throws Propagates path and operand-resolution errors in evaluated filters.
+   * @example match([{ field: 'active', operator: 'EQUAL', data: true }], { active: true }); // true
+   */
   match,
+  /**
+   * Compatibility API retaining the historical `(filter, item, options)` argument order.
+   *
+   * @typeParam T - Entity type being inspected.
+   * @param filter - Filter definition, validated before evaluation.
+   * @param item - Entity whose own data properties are read.
+   * @param options - Same evaluation rules and defaults as {@link evaluateFilter}.
+   * @returns Whether the item matches, with the same behavior as evaluateFilter(item, filter, options).
+   * @throws Propagates filter validation, path, and operand-resolution failures.
+   * @example evaluate({ field: 'id', operator: 'EQUAL', data: 1 }, { id: 1 }); // true
+   */
   evaluate,
-  /** Validates and evaluates one filter; invalid entity values are deterministic non-matches. */
+  /**
+   * Validates and evaluates one filter against an item; invalid item values deterministically do not match.
+   *
+   * @typeParam T - Entity type; field-path types and optional declared types refer to this entity.
+   * @param item - Entity to inspect using own data properties; inherited fields/getters are ignored.
+   * @param filter - Definition validated before evaluation; malformed definitions throw.
+   * @param options - Explicit field types, numeric timestamp units, depth, null policy, clock, and zone.
+   * @returns Whether the entity matches. Invalid entity values are non-matches; text containment
+   *   is case-insensitive, BETWEEN includes both bounds, and logical groups short-circuit.
+   *   Empty AND matches and empty OR does not. No entity mutation occurs.
+   * @throws Propagates validation/path errors from validateFilter and errors encountered while resolving operands.
+   * @example evaluateFilter({ price: 20 }, { field: 'price', operator: 'GREATER_THAN', data: 10 }); // true
+   */
   evaluateFilter,
-  /** Validates and safely clones a filter definition before evaluation. */
+  /**
+   * Validates and clones a filter definition before evaluation.
+   * This is a data-selection helper, not an authorization boundary.
+   *
+   * @typeParam T - Entity type used to type field paths; no entity schema is validated here.
+   * @param filter - Untrusted filter definition. Validates operator-specific operands, paths,
+   *   dense arrays, own data properties, logical depth, and cycles before cloning.
+   * @param options - Type/unit maps and evaluation constraints; default logical depth is 32.
+   * @returns A new validated filter structure without mutating the source. The type brand is
+   *   compile-time evidence only; the returned graph is not frozen or an authorization token.
+   * @throws {FilterValidationError} For invalid shape, operands, limits, cycles, or unsupported options.
+   * @throws {UnsafePropertyPathError} For unsafe or over-depth field paths.
+   * @throws Propagates Proxy inspection failures.
+   * @example validateFilter<{ price: number }>({ field: 'price', operator: 'GREATER_THAN', data: 10 });
+   */
   validateFilter,
+  /**
+   * Resolves a filter operand using safe own-property traversal for field references.
+   *
+   * @param filter - Typed single-value filter; this helper does not first run validateFilter.
+   * @param entity - Source for `dataType: 'field'` own-property references; getters are skipped.
+   * @param options - Reference clock/zone and path limits; current clock is used when now is omitted.
+   * @returns Literal data, the referenced original value (undefined if missing), or a Date for
+   *   today/relative operands. Literal data is not cloned. Invalid today resolution can return null.
+   * @throws {UnsafePropertyPathError} For unsafe paths.
+   * @throws {FilterValidationError} For invalid relative-date resolution.
+   * @example resolveData({ field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' }, { cost: 10 }); // 10
+   */
   resolveData,
+  /**
+   * Resolves a relative-date specification using an optional deterministic reference time. With
+   * `options.timeZone`, day/week/month steps use that zone's calendar and hour steps add elapsed hours.
+   *
+   * @param relative - Validated magnitude/direction/unit specification.
+   * @param now - Valid reference Date, default current instant; never mutated.
+   * @param options - Optional IANA zone. Day/week/month use midnight calendar arithmetic with
+   *   constrained month overflow. With no zone, hours use local-clock addHours; with a zone,
+   *   hours use exact elapsed time. Those hour results may differ at host-local DST transitions.
+   * @returns A new Date resolved from the reference and policy.
+   * @throws {FilterValidationError} For malformed specifications, invalid reference, or failed resolution.
+   * @example resolveRelativeDate(relativeDate(1, 'next', 'day'), new Date('2024-01-01T12:00:00Z'), { timeZone: 'UTC' }).toISOString(); // '2024-01-02T00:00:00.000Z'
+   */
   resolveRelativeDate,
-  /** Converts a date representation using an explicit timestamp unit by default. */
+  /**
+   * Converts a strict date representation to epoch milliseconds, or `null` when unresolved.
+   *
+   * @param value - Valid Date, explicit numeric timestamp (including numeric string), or supported
+   *   date text. Strings must have no surrounding whitespace; booleans/objects/nullish values fail.
+   * @param options - Numeric unit and optional zone for zone-less text. A numeric unit is required
+   *   unless legacy inference is explicitly enabled. ISO offsets already determine the instant.
+   * @returns Epoch milliseconds or null for unresolvable/invalid values. Numeric fractional
+   *   milliseconds can remain fractional; inputs are not mutated.
+   * @example toEpoch(1704067200, { timestampUnit: 'seconds' }); // 1704067200000
+   * @example toEpoch(1704067200); // null
+   */
   toEpoch,
+  /**
+   * Builds a validated relative-date specification.
+   *
+   * @param amount - Strictly positive safe-integer magnitude; zero and negative values are rejected.
+   * @param direction - `'previous'` subtracts; `'next'` adds.
+   * @param unit - `'hour'`, `'day'`, `'week'`, or `'month'`.
+   * @returns A new validated relative-date specification; no clock is read until resolution.
+   * @throws {FilterValidationError} For invalid amount, direction, or unit.
+   * @example relativeDate(7, 'previous', 'day'); // { amount: 7, direction: 'previous', unit: 'day' }
+   */
   relativeDate,
+  /**
+   * Strict type guard for positive safe-integer relative-date specifications.
+   *
+   * @param value - Candidate object; required fields must be own data properties, not getters/inherited values.
+   * @returns Whether amount is a positive safe integer and direction/unit are supported. Extra fields
+   *   are not rejected, and this predicate does not prove resolution will fit the Date range.
+   * @throws Propagates Proxy inspection failures.
+   * @example isDateRelative({ amount: 1, direction: 'next', unit: 'month' }); // true
+   */
   isDateRelative,
 };

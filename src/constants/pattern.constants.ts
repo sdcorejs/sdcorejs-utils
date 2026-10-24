@@ -2,20 +2,15 @@ import { ValidationPattern } from '../models/pattern.model';
 import { StringUtilities } from '../fns/string.fns';
 
 /**
- * Pre-built validation patterns for common input formats.
- *
- * Each entry is a {@link ValidationPattern} pairing a `ValidationPatternType` with the
- * corresponding regex from `StringUtilities` and i18n keys for display name and error message.
- *
- * Use this array to populate a pattern-picker dropdown or look up the pattern string for a
- * given type at runtime.
+ * Shared metadata pairing each ValidationPatternType with a regex source string and
+ * translation keys for its label and error message. The package does not translate these keys.
+ * Patterns are syntax checks; URL/image/UUID helpers may additionally apply parsing or option
+ * policies. RegExp flags are not embedded (for example, UUID uppercase requires `i`).
+ * Copy this mutable array/its entries before making consumer-specific changes.
  *
  * @example
- * const emailPattern = VALIDATION_PATTERNS.find(p => p.type === 'EMAIL');
- * // { type: 'EMAIL', name: 'core.validator.email.name', pattern: '...', errorMessage: '...' }
- *
- * // Use with Angular reactive forms:
- * const validator = Validators.pattern(emailPattern!.pattern);
+ * const emailPattern = VALIDATION_PATTERNS.find(pattern => pattern.type === 'EMAIL');
+ * const matches = emailPattern !== undefined && new RegExp(emailPattern.pattern).test('an@example.com'); // true
  */
 export const VALIDATION_PATTERNS: ValidationPattern[] = [
   { type: 'EMAIL',              name: 'core.validator.email.name',            pattern: StringUtilities.REGEX_EMAIL,              errorMessage: 'core.validator.email.error' },

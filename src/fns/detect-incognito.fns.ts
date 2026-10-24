@@ -7,7 +7,10 @@
  * tuning as a reliable replacement.
  */
 export interface DetectIncognitoOptions {
-  /** Maximum time spent waiting for a browser heuristic. Clamped to 5 seconds. */
+  /**
+   * Maximum wait in milliseconds. Defaults to 1,000 for omitted/non-finite values;
+   * finite values are clamped to the inclusive range 0–5,000. A timeout resolves a negative guess.
+   */
   timeoutMs?: number;
 }
 
@@ -31,6 +34,12 @@ export interface IncognitoDetectionResult {
  * @deprecated Browser privacy modes are intentionally not reliably detectable and
  * there is no reliable replacement. Remove dependent security/authorization logic;
  * analytics uses must tolerate false positives, false negatives, and browser changes.
+ *
+ * @param options - Timeout in milliseconds: default 1,000; finite values clamped to 0–5,000.
+ * @returns A Promise of a best-effort guess. Timeout, unsupported environments, or probe failures
+ *   normally resolve with `isPrivate: false`; the result never establishes a privacy guarantee.
+ * @remarks May briefly create/delete an IndexedDB database or request storage quota information.
+ * @example const result = await BrowserUtilities.detectIncognito({ timeoutMs: 500 });
  */
 export const detectIncognito = (options: DetectIncognitoOptions = {}): Promise<IncognitoDetectionResult> => {
   return new Promise(resolve => {

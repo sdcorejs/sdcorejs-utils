@@ -8,7 +8,10 @@ import { assertSafeObjectKey } from '../internal/security';
 
 /** Options shared by deterministic serializers. */
 export interface SerializationOptions {
-  /** Maximum recursively visited depth. Defaults to `100`. */
+  /**
+   * Maximum recursive depth, counting the root as 0. Defaults to 100; must be a positive
+   * safe integer. Invalid/exceeded limits throw {@link UnsupportedSerializationTypeError}.
+   */
   maxDepth?: number;
 }
 
@@ -125,6 +128,17 @@ const readDataProperty = (value: object, key: string, path: string): unknown => 
  * symbols, bigint, non-finite numbers, sparse arrays, accessors, class instances,
  * binary/collection objects, and cycles. Negative zero follows JSON semantics and
  * encodes as `0`.
+ *
+ * @param value - JSON primitives, dense arrays, plain records, or Dates. Valid Dates become ISO
+ *   strings; invalid Dates become `'Invalid Date'`. These encodings can collide with literal strings.
+ *   Undefined, bigint, non-finite numbers, functions, symbols, accessors, sparse arrays,
+ *   class instances, and collections are unsupported. Object keys sort by UTF-16 code units.
+ * @param options - Recursion limit, default 100. Inputs are not mutated and `toJSON` is not called.
+ * @returns Deterministic JSON text; negative zero is represented as zero.
+ * @throws {CircularReferenceError} For cyclic graphs (non-cyclic shared references are allowed).
+ * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+ * @throws {UnsafeObjectKeyError} For prohibited own keys.
+ * @example stableStringify({ b: 2, a: 1 }); // '{"a":1,"b":2}'
  */
 export const stableStringify = (value: unknown, options: StableStringifyOptions = {}): string => {
   const maxDepth = getMaxDepth(options);
@@ -296,6 +310,18 @@ const canonicalNode = (
  * `NaN` carries its own tag payload, alongside the existing tags for `NaN`, the infinities,
  * negative zero, and array holes. Functions, symbols, class instances, accessors, Blob/File
  * values, and cycles are rejected.
+ *
+ * @param value - Extended data, including undefined, bigint, non-finite numbers, negative zero,
+ *   sparse arrays, Dates, RegExp, Map, Set, ArrayBuffer, and supported typed views. Functions,
+ *   symbols, class instances, Blob/File, accessors, and cycles are rejected.
+ * @param options - Recursion limit, default 100; inputs are not mutated.
+ * @returns Deterministic JSON text with type tags. Record keys and encoded Map/Set entries
+ *   are sorted, preserving type distinctions absent from ordinary JSON. This package exposes
+ *   no inverse decoder, and the representation should not be treated as ordinary application JSON.
+ * @throws {CircularReferenceError} For cyclic graphs.
+ * @throws {UnsupportedSerializationTypeError} For unsupported data or invalid/exceeded limits.
+ * @throws {UnsafeObjectKeyError} For prohibited own keys.
+ * @example canonicalStringify({ b: 2, a: 1 }) === canonicalStringify({ a: 1, b: 2 }); // true
  */
 export const canonicalStringify = (value: unknown, options: CanonicalStringifyOptions = {}): string =>
   JSON.stringify(canonicalNode(value, getMaxDepth(options), new WeakSet(), '$', 0));
@@ -397,20 +423,16 @@ const digest32 = (serialized: string): string => {
 };
 
 /**
- * Produces the library's legacy 32-bit string hash. Total: it returns a key for any value.
+ * Computes the legacy, non-cryptographic 32-bit rolling hash of a stable representation.
+ * Uses {@link stableStringify} first, then a compatibility serializer with placeholders
+ * for some unsupported values and circular references. Blob/File fallback hashes metadata,
+ * not file bytes; unrelated values can collide even before the 32-bit hash is computed.
  *
- * A value inside the strict JSON domain is hashed through {@link stableStringify} and keeps
- * the key it has always had. Anything that domain rejects — `undefined`, non-finite numbers,
- * `bigint`, functions, symbols, sparse arrays, accessors, class instances, `Map`/`Set`,
- * `Blob`/`File`, cycles — is hashed from a copy in which each rejected value is replaced by
- * its own namespaced placeholder, so those inputs still hash and still differ from one another.
- *
- * Totality is deliberate: this is a bucket key for runtime data, not a serialization. Callers
- * that need the strict domain enforced should call {@link stableStringify} or
- * {@link canonicalStringify} directly, both of which still reject.
- *
- * This hash is non-cryptographic, collision-prone, and unsuitable for signatures,
- * authentication, authorization, or untrusted persistent cache identities.
+ * @param value - Value to hash. Compatibility fallback does not make every possible input safe or supported.
+ * @returns `h` followed by the absolute signed 32-bit hash in decimal. Do not use for integrity,
+ *   authentication, unique IDs, or collision-free cache keys.
+ * @throws Propagates failures that remain in fallback traversal, including unsafe keys and inspection errors.
+ * @example hash32({ a: 1 }) === hash32({ a: 1 }); // true
  */
 export const hash32 = (value: unknown): string => {
   try {
@@ -421,10 +443,14 @@ export const hash32 = (value: unknown): string => {
 };
 
 /**
- * Ambiguous compatibility name for {@link hash32}; behavior is unchanged for the
- * previously supported JSON-compatible domain.
+ * Legacy alias of {@link hash32}, including its collision-prone compatibility fallback.
  *
- * @deprecated Use {@link hash32}.
+ * @deprecated Use {@link hash32} for explicit non-cryptographic naming, or {@link sha256Canonical}
+ *   for a cryptographic digest of supported canonical data. Those choices have different guarantees.
+ * @param value - Value passed unchanged to {@link hash32}.
+ * @returns The same `h`-prefixed decimal compatibility hash.
+ * @throws Propagates failures from {@link hash32}.
+ * @example hash({ a: 1 }) === hash32({ a: 1 }); // true
  */
 export const hash = hash32;
 
@@ -434,7 +460,17 @@ const getSubtleCrypto = (): SubtleCrypto => {
   return subtle;
 };
 
-/** Canonicalizes a value and returns its SHA-256 digest as lowercase hexadecimal. */
+/**
+ * Canonicalizes a value and returns its SHA-256 digest as lowercase hexadecimal.
+ *
+ * @param value - Data supported by {@link canonicalStringify}; type distinctions affect the hash.
+ * @param options - Canonical serialization depth limit, default 100.
+ * @returns A Promise of 64 lowercase hexadecimal characters, hashing UTF-8 canonical text.
+ *   This is an unkeyed digest, not a signature or a password-hashing function.
+ * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+ * @throws Rejects serialization errors or runtime digest failures.
+ * @example const digest = await sha256Canonical({ b: 2, a: 1 }); // 64 lowercase hexadecimal characters.
+ */
 export const sha256Canonical = async (
   value: unknown,
   options: CanonicalStringifyOptions = {},
@@ -443,7 +479,17 @@ export const sha256Canonical = async (
   return encodeHex(new Uint8Array(digest));
 };
 
-/** Reads Blob/File bytes asynchronously and returns their SHA-256 digest as lowercase hexadecimal. */
+/**
+ * Reads Blob/File bytes asynchronously and returns their SHA-256 digest as lowercase hexadecimal.
+ *
+ * @param blob - A Blob or File instance recognized by this runtime; its name/type are not hashed.
+ * @returns A Promise of the bytes' 64-character lowercase hexadecimal SHA-256 digest.
+ *   Reads the entire payload into memory; identical bytes yield identical digests regardless of metadata.
+ * @throws {UnsupportedSerializationTypeError} Rejects inputs that are not Blob instances.
+ * @throws {WebCryptoUnavailableError} Rejects if Web Crypto digest support is unavailable.
+ * @throws Rejects Blob reading or runtime digest failures.
+ * @example await sha256Blob(new Blob(['hello'])); // '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+ */
 export const sha256Blob = async (blob: Blob): Promise<string> => {
   if (typeof Blob === 'undefined' || !(blob instanceof Blob)) {
     throw new UnsupportedSerializationTypeError(typeName(blob));

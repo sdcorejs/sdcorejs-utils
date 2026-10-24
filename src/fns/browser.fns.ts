@@ -30,19 +30,52 @@ type UploadLang = keyof typeof UPLOAD_MESSAGES;
 
 /** Options for a single isolated native file-picker invocation. */
 export interface UploadOptions {
-  /** Allowed file extensions without a leading dot. */
+  /**
+   * Allowed final filename extensions, matched case-insensitively; a leading dot is tolerated.
+   * Omitted or empty means no extension restriction. Also builds the native accept hint unless
+   * accept is supplied. Multi-part names are checked by the final suffix; content is not inspected.
+   */
   extensions?: string[];
-  /** Native file-picker accept expression. Derived from `extensions` when omitted. */
+  /**
+   * Native file-picker accept hint (MIME types and/or dotted extensions), derived from extensions
+   * when omitted. Supplying it does not change extension validation or verify the selected file's content.
+   */
   accept?: string;
-  /** Maximum size of each file in MiB. Must be a positive finite number when provided. */
+  /**
+   * Per-file size limit in MiB (1,048,576 bytes), inclusive. Omitted means no size limit.
+   * Must be positive and finite, including after conversion to bytes. Size validation runs first.
+   */
   maxSizeInMb?: number;
-  /** Legacy filename validator. A non-empty return value rejects the file. */
+  /**
+   * Optional synchronous filename validator, run after size/extension checks. A nonempty returned
+   * string rejects with ValidationError; empty/undefined/void permits the file. Thrown errors
+   * reject unchanged. For content/metadata inspection use fileValidator; async validators are unsupported.
+   *
+   * @param fileName - Original selected filename, including extension.
+   * @returns Error message to reject the selection, or no message to continue validation.
+   * @example const options: UploadOptions = { validator: name => name.startsWith('.') ? 'Hidden files are not accepted' : undefined };
+   */
   validator?: (fileName: string) => string | undefined | void;
-  /** Full-file validator. A non-empty return value rejects the file. */
+  /**
+   * Optional synchronous full-file validator, run after the filename validator. A nonempty
+   * message rejects with ValidationError; thrown errors reject unchanged. It receives a File
+   * but does not automatically read bytes; asynchronous validation is unsupported here.
+   *
+   * @param file - Original File object selected by the user.
+   * @returns Error message to reject, or empty/undefined/void to accept.
+   * @example const options: UploadOptions = { fileValidator: file => file.size === 0 ? 'Empty file' : undefined };
+   */
   fileValidator?: (file: File) => string | undefined | void;
-  /** Maximum time to wait for selection/cancellation. Defaults to five minutes. */
+  /**
+   * Positive finite maximum wait in milliseconds, default 300,000 (five minutes).
+   * Expiry rejects with FilePickerCancelledError and removes picker resources; browser timer
+   * scheduling can delay actual settlement beyond the requested duration.
+   */
   timeoutMs?: number;
-  /** Allows selecting multiple files and changes the resolved value to `File[]`. */
+  /**
+   * Select multiple files, default false. Literal true gives a Promise<File[]> overload;
+   * false/omitted gives Promise<File>. Every selected file must validate before resolution.
+   */
   multiple?: boolean;
 }
 
@@ -69,9 +102,77 @@ const getUploadLang = (): UploadLang => {
 
 let pickerSequence = 0;
 
+/**
+ * Opens an isolated native file picker and validates each selected file before resolving.
+ * Requires a browser with `document.body` and usually a user gesture. Size, extension,
+ * filename validator, and full-file validator run in that order; all files must pass.
+ * The temporary input, listeners, and timer are removed on settlement. File extensions
+ * and picker hints do not verify file content; perform trusted content validation separately.
+ *
+ * @param option - Selection and validation settings. Defaults to one file, unrestricted
+ *   extension/size, and a 300,000 ms timeout. `multiple: true` selects the array overload.
+ * @returns A Promise of a File, or File[] for multiple selection; no bytes are uploaded.
+ * @throws {ValidationError} Rejects invalid options, unavailable DOM, or a failed validation.
+ * @throws {FilePickerCancelledError} Rejects cancel events, empty selection, or timeout.
+ * @throws Rejects exceptions raised by custom validators or picker setup.
+ * @example
+ * const files = await BrowserUtilities.upload({ multiple: true, extensions: ['pdf'], maxSizeInMb: 10 });
+ * files.map(file => file.name);
+ */
 function upload(option: UploadOptions & { multiple: true }): Promise<File[]>;
+/**
+ * Opens an isolated native file picker and validates each selected file before resolving.
+ * Requires a browser with `document.body` and usually a user gesture. Size, extension,
+ * filename validator, and full-file validator run in that order; all files must pass.
+ * The temporary input, listeners, and timer are removed on settlement. File extensions
+ * and picker hints do not verify file content; perform trusted content validation separately.
+ *
+ * @param option - Selection and validation settings. Defaults to one file, unrestricted
+ *   extension/size, and a 300,000 ms timeout. `multiple: true` selects the array overload.
+ * @returns A Promise of a File, or File[] for multiple selection; no bytes are uploaded.
+ * @throws {ValidationError} Rejects invalid options, unavailable DOM, or a failed validation.
+ * @throws {FilePickerCancelledError} Rejects cancel events, empty selection, or timeout.
+ * @throws Rejects exceptions raised by custom validators or picker setup.
+ * @example
+ * const files = await BrowserUtilities.upload({ multiple: true, extensions: ['pdf'], maxSizeInMb: 10 });
+ * files.map(file => file.name);
+ */
 function upload(option?: UploadOptions & { multiple?: false | undefined }): Promise<File>;
+/**
+ * Opens an isolated native file picker and validates each selected file before resolving.
+ * Requires a browser with `document.body` and usually a user gesture. Size, extension,
+ * filename validator, and full-file validator run in that order; all files must pass.
+ * The temporary input, listeners, and timer are removed on settlement. File extensions
+ * and picker hints do not verify file content; perform trusted content validation separately.
+ *
+ * @param option - Selection and validation settings. Defaults to one file, unrestricted
+ *   extension/size, and a 300,000 ms timeout. `multiple: true` selects the array overload.
+ * @returns A Promise of a File, or File[] for multiple selection; no bytes are uploaded.
+ * @throws {ValidationError} Rejects invalid options, unavailable DOM, or a failed validation.
+ * @throws {FilePickerCancelledError} Rejects cancel events, empty selection, or timeout.
+ * @throws Rejects exceptions raised by custom validators or picker setup.
+ * @example
+ * const files = await BrowserUtilities.upload({ multiple: true, extensions: ['pdf'], maxSizeInMb: 10 });
+ * files.map(file => file.name);
+ */
 function upload(option?: UploadOptions): Promise<File | File[]>;
+/**
+ * Opens an isolated native file picker and validates each selected file before resolving.
+ * Requires a browser with `document.body` and usually a user gesture. Size, extension,
+ * filename validator, and full-file validator run in that order; all files must pass.
+ * The temporary input, listeners, and timer are removed on settlement. File extensions
+ * and picker hints do not verify file content; perform trusted content validation separately.
+ *
+ * @param option - Selection and validation settings. Defaults to one file, unrestricted
+ *   extension/size, and a 300,000 ms timeout. `multiple: true` selects the array overload.
+ * @returns A Promise of a File, or File[] for multiple selection; no bytes are uploaded.
+ * @throws {ValidationError} Rejects invalid options, unavailable DOM, or a failed validation.
+ * @throws {FilePickerCancelledError} Rejects cancel events, empty selection, or timeout.
+ * @throws Rejects exceptions raised by custom validators or picker setup.
+ * @example
+ * const files = await BrowserUtilities.upload({ multiple: true, extensions: ['pdf'], maxSizeInMb: 10 });
+ * files.map(file => file.name);
+ */
 function upload(option: UploadOptions = {}): Promise<File | File[]> {
   return new Promise((resolve, reject) => {
     const requestedMaxSize = option.maxSizeInMb;
@@ -238,6 +339,23 @@ const parseDownloadUrl = (value: string, options: DownloadOptions): { href: stri
   };
 };
 
+/**
+ * Triggers a browser download or opens an explicit HTTP(S) URL in a new tab.
+ * File inputs use a temporary object URL, revoked after the click. Relative URLs must
+ * remain on the current origin; absolute HTTP(S) links use `noopener noreferrer`.
+ * `blob:` is permitted; `data:` requires opt-in; JavaScript/VBScript URLs are always rejected.
+ * Requires browser DOM/URL APIs. A click does not guarantee the browser completes a download.
+ *
+ * @param fileOrPath - File or URL/path; null, undefined, and empty text are no-ops.
+ * @param fileName - Suggested filename; defaults to the File name or a generated filename.
+ *   Browsers control actual naming, and new-tab HTTP(S) links do not use this suggestion.
+ * @param options - Protocol allowlist extensions; no additional protocols by default.
+ * @returns Nothing; performs a DOM click and removes its temporary link.
+ * @throws {ValidationError} For malformed URLs or protocol configuration.
+ * @throws {UnsafeUrlProtocolError} For disallowed protocols or cross-origin relative URLs.
+ * @throws Propagates unavailable browser API or DOM errors.
+ * @example BrowserUtilities.download('/reports/monthly.csv', 'report.csv');
+ */
 const download = (
   fileOrPath: File | string | undefined | null,
   fileName?: string | null,
@@ -257,6 +375,17 @@ const download = (
   clickDownloadLink(parsed.href, fileName ?? undefined, parsed.openInNewTab);
 };
 
+/**
+ * Triggers a browser download of Blob bytes using a temporary object URL.
+ * The link is removed and the object URL revoked after the click, even when clicking fails.
+ * Requires browser DOM and object-URL support; completion is controlled by the browser.
+ *
+ * @param blob - Blob or File whose bytes should be downloaded.
+ * @param fileName - Suggested filename; a timestamp-based name is generated when omitted.
+ * @returns Nothing; does not wait for a completed download.
+ * @throws Propagates object-URL and DOM failures.
+ * @example BrowserUtilities.downloadBlob(new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+ */
 const downloadBlob = (blob: Blob, fileName?: string): void => {
   const url = URL.createObjectURL(blob);
   try {
@@ -266,28 +395,118 @@ const downloadBlob = (blob: Blob, fileName?: string): void => {
   }
 };
 
+/**
+ * Writes plain text using the browser Clipboard API, without a legacy fallback.
+ * Requires `navigator.clipboard`; browser permissions, secure-context rules, and user activation apply.
+ *
+ * @param text - Text to place on the system clipboard.
+ * @returns A Promise resolving after the browser accepts the write.
+ * @throws Rejects when the API is absent, permission is denied, or the browser write fails.
+ * @example await BrowserUtilities.copyToClipboard('Copied text');
+ */
 const copyToClipboard = async (text: string): Promise<void> => {
   await navigator.clipboard.writeText(text);
 };
 
+/**
+ * Checks the user-agent string for `Mobi` or `Android`, ignoring case.
+ * This is a heuristic, not viewport, touch, capability, or reliable device detection.
+ *
+ * @returns Whether the browser user-agent matches the heuristic.
+ * @throws {ReferenceError} Outside environments providing `navigator`.
+ * @example BrowserUtilities.isMobile(); // Depends on navigator.userAgent.
+ */
 const isMobile = (): boolean => /Mobi|Android/i.test(navigator.userAgent);
 
+/**
+ * Browser-only file, clipboard, and user-agent helpers. Importing the namespace is safe
+ * without DOM globals, but calling a member requires the APIs documented on that member.
+ *
+ * @example
+ * import { BrowserUtilities } from '@sdcorejs/utils/fns';
+ * await BrowserUtilities.copyToClipboard('hello');
+ */
 export const BrowserUtilities = {
-  /** Opens an isolated file picker, validates each selected file once, and always settles. */
+  /**
+   * Opens an isolated native file picker and validates each selected file before resolving.
+   * Requires a browser with `document.body` and usually a user gesture. Size, extension,
+   * filename validator, and full-file validator run in that order; all files must pass.
+   * The temporary input, listeners, and timer are removed on settlement. File extensions
+   * and picker hints do not verify file content; perform trusted content validation separately.
+   *
+   * @param option - Selection and validation settings. Defaults to one file, unrestricted
+   *   extension/size, and a 300,000 ms timeout. `multiple: true` selects the array overload.
+   * @returns A Promise of a File, or File[] for multiple selection; no bytes are uploaded.
+   * @throws {ValidationError} Rejects invalid options, unavailable DOM, or a failed validation.
+   * @throws {FilePickerCancelledError} Rejects cancel events, empty selection, or timeout.
+   * @throws Rejects exceptions raised by custom validators or picker setup.
+   * @example
+   * const files = await BrowserUtilities.upload({ multiple: true, extensions: ['pdf'], maxSizeInMb: 10 });
+   * files.map(file => file.name);
+   */
   upload,
-  /** Downloads a File, safe relative URL, or explicitly allowed absolute URL. */
+  /**
+   * Triggers a browser download or opens an explicit HTTP(S) URL in a new tab.
+   * File inputs use a temporary object URL, revoked after the click. Relative URLs must
+   * remain on the current origin; absolute HTTP(S) links use `noopener noreferrer`.
+   * `blob:` is permitted; `data:` requires opt-in; JavaScript/VBScript URLs are always rejected.
+   * Requires browser DOM/URL APIs. A click does not guarantee the browser completes a download.
+   *
+   * @param fileOrPath - File or URL/path; null, undefined, and empty text are no-ops.
+   * @param fileName - Suggested filename; defaults to the File name or a generated filename.
+   *   Browsers control actual naming, and new-tab HTTP(S) links do not use this suggestion.
+   * @param options - Protocol allowlist extensions; no additional protocols by default.
+   * @returns Nothing; performs a DOM click and removes its temporary link.
+   * @throws {ValidationError} For malformed URLs or protocol configuration.
+   * @throws {UnsafeUrlProtocolError} For disallowed protocols or cross-origin relative URLs.
+   * @throws Propagates unavailable browser API or DOM errors.
+   * @example BrowserUtilities.download('/reports/monthly.csv', 'report.csv');
+   */
   download,
-  /** Downloads Blob bytes and revokes the temporary object URL after the click. */
+  /**
+   * Triggers a browser download of Blob bytes using a temporary object URL.
+   * The link is removed and the object URL revoked after the click, even when clicking fails.
+   * Requires browser DOM and object-URL support; completion is controlled by the browser.
+   *
+   * @param blob - Blob or File whose bytes should be downloaded.
+   * @param fileName - Suggested filename; a timestamp-based name is generated when omitted.
+   * @returns Nothing; does not wait for a completed download.
+   * @throws Propagates object-URL and DOM failures.
+   * @example BrowserUtilities.downloadBlob(new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+   */
   downloadBlob,
-  /** Writes text to the Clipboard API and exposes permission failures through its Promise. */
+  /**
+   * Writes plain text using the browser Clipboard API, without a legacy fallback.
+   * Requires `navigator.clipboard`; browser permissions, secure-context rules, and user activation apply.
+   *
+   * @param text - Text to place on the system clipboard.
+   * @returns A Promise resolving after the browser accepts the write.
+   * @throws Rejects when the API is absent, permission is denied, or the browser write fails.
+   * @example await BrowserUtilities.copyToClipboard('Copied text');
+   */
   copyToClipboard,
-  /** Returns whether the current user-agent string resembles a mobile browser. */
+  /**
+   * Checks the user-agent string for `Mobi` or `Android`, ignoring case.
+   * This is a heuristic, not viewport, touch, capability, or reliable device detection.
+   *
+   * @returns Whether the browser user-agent matches the heuristic.
+   * @throws {ReferenceError} Outside environments providing `navigator`.
+   * @example BrowserUtilities.isMobile(); // Depends on navigator.userAgent.
+   */
   isMobile,
   /**
-   * Retains the bounded v1.x best-effort result for compatibility.
-   * @deprecated Private-mode detection is unreliable and has no security-capable
-   * replacement. Remove decision logic that depends on it; analytics uses must
-   * tolerate browser-dependent false results.
+   * Best-effort private browsing heuristic.
+   *
+   * Behavior remains a bounded best-effort compatibility heuristic in v1.2.
+   * @deprecated Browser privacy modes are intentionally not reliably detectable and
+   * there is no reliable replacement. Remove dependent security/authorization logic;
+   * analytics uses must tolerate false positives, false negatives, and browser changes.
+   *
+   * @param options - Timeout in milliseconds: default 1,000; finite values clamped to 0–5,000.
+   * @returns A Promise of a best-effort guess. Timeout, unsupported environments, or probe failures
+   *   normally resolve with `isPrivate: false`; the result never establishes a privacy guarantee.
+   * @remarks May briefly create/delete an IndexedDB database or request storage quota information.
+   * @example const result = await BrowserUtilities.detectIncognito({ timeoutMs: 500 });
    */
   detectIncognito,
 };

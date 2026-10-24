@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DateParseError } from '../errors';
 import { DateUtilities } from './date.fns';
 
@@ -162,6 +162,77 @@ describe('DateUtilities.addHours', () => {
     expect(DateUtilities.addHours(null, 3)).toBeNull();
     expect(DateUtilities.addHours('invalid', 3)).toBeNull();
   });
+
+  it.each([
+    [0.5, 1_800_000],
+    [-0.5, -1_800_000],
+    [1.5, 5_400_000],
+    [-1.5, -5_400_000],
+    [0.1, 360_000],
+    [-0.1, -360_000],
+    [1.001, 3_603_600],
+    [-1.001, -3_603_600],
+    [2.3, 8_280_000],
+    [-2.3, -8_280_000],
+    [1 / 3_600_000, 1],
+    [-1 / 3_600_000, -1],
+  ])('adds %s hours without losing fractional precision', (hours, milliseconds) => {
+    const input = new Date(2025, 0, 15, 10, 20, 30, 123);
+    const originalTime = input.getTime();
+    const result = DateUtilities.addHours(input, hours);
+
+    expect(result?.getTime()).toBe(originalTime + milliseconds);
+    expect(result).not.toBe(input);
+    expect(input.getTime()).toBe(originalTime);
+  });
+
+  it.each([
+    ['2025-01-15T23:45:30.123', 0.5, '2025-01-16T00:15:30.123'],
+    ['2025-01-15T00:15:30.123', -0.5, '2025-01-14T23:45:30.123'],
+  ])('carries fractional hours across midnight from %s', (input, hours, expected) => {
+    expect(DateUtilities.addHours(input, hours)?.getTime()).toBe(new Date(expected).getTime());
+  });
+
+  it.each([
+    ['2025-03-09T01:45:00', 0.5, '2025-03-09T02:15:00'],
+    ['2025-03-09T01:45:00', 1.5, '2025-03-09T03:15:00'],
+    ['2025-03-09T03:15:00', -1.5, '2025-03-09T01:45:00'],
+    ['2025-11-02T00:45:00', 0.5, '2025-11-02T01:15:00'],
+    ['2025-11-02T00:45:00', 1.5, '2025-11-02T02:15:00'],
+    ['2025-11-02T02:15:00', -1.5, '2025-11-02T00:45:00'],
+    ['2025-03-09T01:45:00', 2, '2025-03-09T03:45:00'],
+    ['2025-11-02T00:45:00', 2, '2025-11-02T02:45:00'],
+    ['2025-03-30T01:45:00', 1.5, '2025-03-30T03:15:00'],
+    ['2025-10-26T01:45:00', 1.5, '2025-10-26T03:15:00'],
+  ])('resolves the target local clock once for %s plus %s hours', (input, hours, expected) => {
+    // The CI TZ matrix exercises New York/Berlin gaps and overlaps. Constructing
+    // the target local Date also keeps the assertion valid in UTC and Bangkok.
+    expect(DateUtilities.addHours(input, hours)?.getTime()).toBe(new Date(expected).getTime());
+  });
+
+  it('keeps a half-hour expiry in the future independently of read timing', () => {
+    const start = new Date(2025, 0, 15, 10, 20, 30, 123);
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(start);
+      const expires = DateUtilities.addHours(new Date(), 0.5);
+      expect(expires?.getTime()).toBe(start.getTime() + 1_800_000);
+
+      for (const elapsed of [0, 1, 1_799_999]) {
+        vi.setSystemTime(new Date(start.getTime() + elapsed));
+        expect(expires!.getTime()).toBeGreaterThan(Date.now());
+      }
+      vi.setSystemTime(new Date(start.getTime() + 1_800_000));
+      expect(expires?.getTime()).toBe(Date.now());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.MAX_VALUE])(
+    'returns null for invalid or out-of-range hours %s',
+    hours => expect(DateUtilities.addHours('2025-01-15T10:00:00', hours)).toBeNull(),
+  );
 });
 
 // ─── addMonths ───────────────────────────────────────────────────────────────

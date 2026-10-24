@@ -28,7 +28,7 @@ type Primitive = string | number | boolean | null | undefined | Date | Function;
  * // 'id' | 'name' | 'address' | 'address.city' | 'address.country' | 'roles'
  *
  * const sortField: NestedKeyOf<User> = 'address.city'; // valid
- * const badField: NestedKeyOf<User> = 'address.zip';   // TS error
+ * // const badField: NestedKeyOf<User> = 'address.zip';   // TS error
  */
 export type NestedKeyOf<ObjectType, Depth extends number[] = []> = Depth['length'] extends 4
   ? never
