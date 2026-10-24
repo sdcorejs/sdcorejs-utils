@@ -6,14 +6,14 @@ import {
 } from './core-entries';
 
 describe('core API reference inventory', () => {
-  it('documents each of the 67 model, constant, and error exports exactly once', () => {
+  it('documents each of the 73 model, constant, and error exports exactly once', () => {
     const documented = [...CORE_DOCUMENTED_SYMBOLS];
     const entrySymbols = CORE_API_ENTRIES.map((entry) => entry.symbol);
 
-    expect(documented).toHaveLength(67);
-    expect(new Set(documented)).toHaveLength(67);
+    expect(documented).toHaveLength(73);
+    expect(new Set(documented)).toHaveLength(73);
     expect(entrySymbols).toEqual(documented);
-    expect(new Set(entrySymbols)).toHaveLength(67);
+    expect(new Set(entrySymbols)).toHaveLength(73);
   });
 
   it('uses the canonical public subpath for every entry', () => {
@@ -24,7 +24,7 @@ describe('core API reference inventory', () => {
     }
 
     expect(CORE_API_ENTRIES.filter((entry) => entry.importPath === '@sdcorejs/utils/models'))
-      .toHaveLength(41);
+      .toHaveLength(47);
     expect(CORE_API_ENTRIES.filter((entry) => entry.importPath === '@sdcorejs/utils/constants'))
       .toHaveLength(5);
     expect(CORE_API_ENTRIES.filter((entry) => entry.importPath === '@sdcorejs/utils/errors'))

@@ -7,7 +7,7 @@ const context = (locale: 'en' | 'vi'): DocRenderContext => ({ locale, navigate: 
 describe('bilingual compiled examples', () => {
   it('defines unique complete metadata and real TypeScript sources', async () => {
     expect(EXAMPLE_PAGES).toHaveLength(5);
-    expect(EXAMPLE_ENTRIES).toHaveLength(13);
+    expect(EXAMPLE_ENTRIES).toHaveLength(14);
     expect(new Set(EXAMPLE_ENTRIES.map(entry => entry.id)).size).toBe(EXAMPLE_ENTRIES.length);
 
     for (const entry of EXAMPLE_ENTRIES) {

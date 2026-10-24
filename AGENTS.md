@@ -32,3 +32,11 @@ Các quy tắc dưới đây áp dụng cho toàn bộ repository `@sdcorejs/uti
 - Giữ package độc lập framework và không thêm runtime dependency khi chưa thuộc phạm vi yêu cầu.
 - Không đưa model, endpoint, business rule hoặc cấu hình riêng của một ứng dụng vào utility tổng quát.
 - Không tự commit, push, publish, đổi version hoặc sửa thay đổi không liên quan.
+
+## Benchmark và release package
+
+- Thay đổi ảnh hưởng hiệu năng, hot path hoặc tuyên bố tối ưu phải có benchmark tái lập được: baseline có ý nghĩa, assertion kết quả, kích thước dữ liệu đại diện, warmup, nhiều mẫu đo, p50/p95 và thông tin môi trường/source revision. Ghi nhận memory/allocation khi phù hợp và nêu giới hạn của phép đo.
+- Chạy benchmark độc lập với build/test nặng; không dùng ngưỡng thời gian phụ thuộc máy trong unit test. Thay đổi chỉ kiểu TypeScript không sinh công việc runtime: ghi rõ benchmark runtime không áp dụng thay vì tạo số liệu giả. Benchmark query executor tại package sử dụng khi hành vi thực thi thay đổi.
+- Model dùng chung phải có kiểm tra compiler dương/âm trên package đóng gói qua root/subpath và declaration ESM/CJS; runtime coverage không chứng minh được contract của kiểu bị xóa sau biên dịch.
+- Release đã được người dùng yêu cầu dùng Changesets và workflow `.github/workflows/publish.yml` với npm trusted publishing. Tôn trọng version người dùng chỉ định, chạy kiểm tra liên quan trước khi publish và xác nhận version thực tế trên npm trước khi báo phát hành thành công.
+- Chỉ stage file thuộc phạm vi công việc; không commit credential, fixture package tạm, node_modules, coverage report hoặc build output.

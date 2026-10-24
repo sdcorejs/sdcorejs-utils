@@ -45,6 +45,8 @@ export const DOCUMENTED_STRUCTURED_PROPERTIES = {
   FilterAndOr: ['operator', 'data'],
   Order: ['field', 'direction'],
   PagingReq: ['filters?', 'fields?', 'pageSize?', 'pageNumber?', 'orders?'],
+  AggregateMetric: ['field', 'operation', 'alias', 'distinct?'],
+  AggregateReq: ['filters?', 'fields?', 'aggregates', 'groupBy?'],
   SubscriptionLike: ['closed?', 'unsubscribe'],
   ObserverLike: ['next?', 'error?', 'complete?'],
   SubscribableLike: ['subscribe'],

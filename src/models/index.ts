@@ -3,6 +3,7 @@ export * from './operator.model';
 export * from './filter.model';
 export * from './order.model';
 export * from './paging.model';
+export * from './aggregate.model';
 export * from './size.model';
 export * from './color.model';
 export * from './maybe-async.model';

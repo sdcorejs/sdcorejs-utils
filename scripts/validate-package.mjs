@@ -442,6 +442,19 @@ async function validateTypeDeclarations(consumerRoot) {
   await validateAbortDeclarations(consumerRoot);
   const typeRoot = join(consumerRoot, 'declarations');
   await mkdir(typeRoot);
+  // Compile the same positive/negative aggregate contract in both module modes
+  // and from both public entry points of the actual packed dependency.
+  const aggregateFixture = await readFile(join(repositoryRoot, 'test-d', 'aggregate.fixture.ts'), 'utf8');
+  for (const extension of ['mts', 'cts']) {
+    for (const entry of ['models', 'root']) {
+      await writeFile(
+        join(typeRoot, `aggregate-${entry}.${extension}`),
+        entry === 'root'
+          ? aggregateFixture.replace("'@sdcorejs/utils/models'", "'@sdcorejs/utils'")
+          : aggregateFixture,
+      );
+    }
+  }
   await writeFile(
     join(typeRoot, 'consumer.mts'),
     `import {
@@ -518,7 +531,41 @@ void [root.DateUtilities, constants.EMPTY_STR, fns.ValidationUtilities, request,
   );
   await writeJson(join(typeRoot, 'tsconfig.json'), typeScriptConfig());
   runTypeScript(join(typeRoot, 'tsconfig.json'), consumerRoot);
+  validateAggregateDocumentation(typeRoot);
   console.log('[package-validation] .mts and .cts declaration consumers passed');
+}
+
+function validateAggregateDocumentation(typeRoot) {
+  const probes = ['mts', 'cts'].flatMap(extension =>
+    ['models', 'root'].map(entry => join(typeRoot, `aggregate-${entry}.${extension}`)),
+  );
+  const program = ts.createProgram(probes, {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022,
+    noEmit: true,
+    types: [],
+  });
+  const checker = program.getTypeChecker();
+  for (const probe of probes) {
+    const source = program.getSourceFile(probe);
+    const bindings = source.statements.find(ts.isImportDeclaration).importClause.namedBindings.elements;
+    for (const binding of bindings.filter(item => item.name.text.startsWith('Aggregate'))) {
+      const symbol = checker.getAliasedSymbol(checker.getSymbolAtLocation(binding.name));
+      const label = `${basename(probe)}: ${symbol.name}`;
+      assert.ok(ts.displayPartsToString(symbol.getDocumentationComment(checker)).length > 40, `${label} retains consumer JSDoc`);
+      if (['AggregateMetric', 'AggregateReq', 'AggregateRes'].includes(symbol.name)) {
+        const tags = symbol.getJsDocTags(checker).map(tag => tag.name);
+        assert.ok(tags.includes('template') && tags.includes('example'), `${label} retains generic and example documentation`);
+      }
+      if (['AggregateMetric', 'AggregateReq'].includes(symbol.name)) {
+        for (const property of checker.getPropertiesOfType(checker.getDeclaredTypeOfSymbol(symbol))) {
+          assert.ok(ts.displayPartsToString(property.getDocumentationComment(checker)).length > 10, `${label}.${property.name} retains property documentation`);
+        }
+      }
+    }
+  }
+  console.log('[package-validation] aggregate root/models ESM/CJS contracts and hover JSDoc passed');
 }
 
 async function validateBrowserBundle(consumerRoot) {
