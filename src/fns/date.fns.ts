@@ -539,12 +539,34 @@ export const addDays = (value: unknown, days: number): Date | null => {
   }
 };
 
-/** Adds local clock hours. Across DST this may represent fewer or more elapsed milliseconds. */
+/**
+ * Adds positive or negative local clock hours, including fractional hours.
+ *
+ * The fractional part is rounded to the nearest millisecond. The target local
+ * clock is resolved once: DST gaps move forward and overlaps use the earlier
+ * offset, following native Date setters. Elapsed time may therefore differ
+ * from `hours * 3_600_000`; use {@link addMilliseconds} for a fixed-duration TTL.
+ *
+ * @param value - A supported date value. An input Date is never mutated.
+ * @param hours - Finite local clock hours to add; `0.5` adds thirty local minutes.
+ * @returns A new valid Date, or null for invalid input or an out-of-range result.
+ * @example
+ * addHours('2025-01-15T10:00:00', 0.5); // local 2025-01-15 10:30:00
+ * addHours('2025-01-15T10:00:00', -0.5); // local 2025-01-15 09:30:00
+ */
 export const addHours = (value: unknown, hours: number): Date | null => {
   if (!Number.isFinite(hours)) return null;
   try {
     const date = parseDateInput(value);
-    date.setHours(date.getHours() + hours);
+    const wholeHours = Math.trunc(hours);
+    const fractionalMilliseconds = Math.round((hours - wholeHours) * 3_600_000);
+    // A single local setter preserves fractions without resolving DST twice.
+    date.setHours(
+      date.getHours() + wholeHours,
+      date.getMinutes(),
+      date.getSeconds(),
+      date.getMilliseconds() + fractionalMilliseconds,
+    );
     return validOrNull(date);
   } catch {
     return null;
