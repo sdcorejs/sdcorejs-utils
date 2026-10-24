@@ -1,4 +1,5 @@
 import type { ApiEntry } from '../types';
+import { AGGREGATE_SPECS } from './aggregate-entries';
 import {
   createEntry,
   deprecated,
@@ -491,6 +492,7 @@ const modelSpecs = [
     ),
     exampleIds: ['paging-zero'],
   },
+  ...AGGREGATE_SPECS,
   {
     symbol: 'PagingReq',
     kind: 'interface',
@@ -1430,6 +1432,12 @@ export const CORE_DOCUMENTED_SYMBOLS = [
   'MatchOptions',
   'Order',
   'QueryReq',
+  'AggregateOperation',
+  'AggregateMetric',
+  'AggregateReq',
+  'AggregateValue',
+  'AggregateRow',
+  'AggregateRes',
   'PagingReq',
   'PagingRes',
   'Size',
@@ -1502,6 +1510,12 @@ export const CORE_IMPORT_PATHS = {
   MatchOptions: MODELS,
   Order: MODELS,
   QueryReq: MODELS,
+  AggregateOperation: MODELS,
+  AggregateMetric: MODELS,
+  AggregateReq: MODELS,
+  AggregateValue: MODELS,
+  AggregateRow: MODELS,
+  AggregateRes: MODELS,
   PagingReq: MODELS,
   PagingRes: MODELS,
   Size: MODELS,

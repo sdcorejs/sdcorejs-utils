@@ -2,6 +2,19 @@ import { defineExample, definePage, lazyPage } from './registry';
 
 export const EXAMPLE_ENTRIES = [
   defineExample({
+    id: 'aggregate-query',
+    pageId: 'example-paging-async',
+    anchor: 'aggregate-query',
+    title: { en: 'Share aggregate request and response models', vi: 'Dùng chung model request và response tổng hợp' },
+    summary: {
+      en: 'Group products, calculate multiple metrics for one field, and preserve driver numeric precision.',
+      vi: 'Nhóm sản phẩm, tính nhiều chỉ số trên cùng field và giữ độ chính xác số của driver.',
+    },
+    language: 'ts',
+    loadSource: async () => (await import('../examples/aggregate-query.example.ts?raw')).default,
+    relatedSymbols: ['AggregateReq', 'AggregateRes', 'AggregateMetric', 'AggregateOperation', 'AggregateRow', 'AggregateValue'],
+  }),
+  defineExample({
     id: 'abort-errors',
     pageId: 'example-paging-async',
     anchor: 'abort-errors',

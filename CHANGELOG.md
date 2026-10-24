@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2
+
+### Patch Changes
+
+- Add shared AggregateReq and AggregateRes models with metric operations, aliases, optional grouping, and precision-preserving scalar values. Include complete JSDoc, bilingual reference documentation, and packed ESM/CommonJS positive and negative type checks. This release adds contracts only; query execution remains in consuming packages.
+
 ## 1.3.1
 
 ### Patch Changes

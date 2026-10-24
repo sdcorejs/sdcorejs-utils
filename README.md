@@ -53,6 +53,7 @@ and security guidance.
 - [Filters](#filters)
 - [Browser utilities](#browser-utilities)
 - [Pagination](#pagination)
+- [Aggregate models](#aggregate-models)
 - [UUID and number/URL validation](#uuid-and-numberurl-validation)
 - [MaybeAsync without RxJS](#maybeasync-without-rxjs)
 - [Typed errors](#typed-errors)
@@ -115,6 +116,37 @@ const emailsAreValid = firstPage.every(user =>
 
 void [firstPage, emailsAreValid];
 ```
+
+## Aggregate models
+
+Since 1.3.2, shared aggregate contracts are available from the root and models entry points:
+
+```ts
+import type { AggregateReq, AggregateRes } from '@sdcorejs/utils/models';
+
+const request: AggregateReq<{ category: string; amount: number }> = {
+  groupBy: ['category'],
+  aggregates: [
+    { field: 'amount', operation: 'sum', alias: 'totalAmount' },
+    { field: 'amount', operation: 'max', alias: 'maxAmount' },
+    { field: '*', operation: 'count', alias: 'rowCount' },
+  ],
+};
+const response: AggregateRes = [
+  { category: 'books', totalAmount: '30', maxAmount: '20', rowCount: '2' },
+];
+```
+
+`AggregateReq` extends `QueryReq`: filters run before aggregation, and `fields` projects
+group keys only. Each metric uses its own alias. Omit `groupBy` for a single summary row;
+grouped empty input returns `[]`. `AggregateRes<TRow>` is an array without a total-group
+count or HTTP envelope. Supported operations are `sum`, `count`, `avg`, `min`, and `max`;
+`*` is only valid for count without distinct. PostgreSQL numeric/bigint results can stay
+strings to preserve precision; Date values serialize to ISO strings over JSON.
+
+These are type-only contracts, not an aggregate executor or runtime validator. Consumers
+own field authorization, query execution, grouping limits and transactions. The exported
+supporting types are `AggregateMetric`, `AggregateOperation`, `AggregateRow` and `AggregateValue`.
 
 ## Runtime support
 
