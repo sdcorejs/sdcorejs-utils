@@ -61,30 +61,29 @@ export type ValidationPatternType =
   | 'BASE64';
 
 /**
- * Metadata for a single built-in validation pattern, used by form validators and
- * pattern-picker UI components.
- *
- * All `name` and `errorMessage` values are i18n keys resolved at runtime by `I18nService`.
- * The `pattern` field is a regex string compatible with `Angular Validators.pattern()` and
- * the native `RegExp` constructor.
+ * Metadata for one validation pattern: its identifier, regex source, label key, and error key.
+ * Applications resolve translation keys and choose RegExp flags; the package does not supply
+ * an i18n service. These patterns validate syntax only and may differ from higher-level
+ * ValidationUtilities policies, particularly for URL and UUID validation.
  *
  * @example
  * const emailPattern: ValidationPattern = {
  *   type: 'EMAIL',
  *   name: 'core.validator.email.name',
- *   pattern: '^[\\w.+-]+@[\\w-]+\\.[\\w.]+$',
+ *   pattern: StringUtilities.REGEX_EMAIL,
  *   errorMessage: 'core.validator.email.error',
  * };
- *
- * // Use with Angular reactive forms:
- * const control = new FormControl('', Validators.pattern(emailPattern.pattern));
+ * const valid = new RegExp(emailPattern.pattern).test('an@example.com'); // true
  */
 export interface ValidationPattern {
   /** Pattern identifier — matches a `ValidationPatternType` member. */
   type: ValidationPatternType;
   /** i18n key for the human-readable pattern name shown in the UI. */
   name: string;
-  /** Regex string used to validate the input. Pass directly to `Validators.pattern()` or `new RegExp(pattern)`. */
+  /**
+   * RegExp source string without surrounding slashes or embedded flags. Construct a RegExp
+   * with any required flags explicitly; the type does not validate regex syntax or remote content.
+   */
   pattern: string;
   /** i18n key for the validation error message shown when the pattern does not match. */
   errorMessage: string;

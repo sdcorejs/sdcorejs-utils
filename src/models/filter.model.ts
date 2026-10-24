@@ -11,6 +11,7 @@ import { OperatorHasData, OperatorNoData } from './operator.model';
  * @template T - The entity type being filtered (e.g. `Product`).
  *
  * @example
+ * type Product = { name: string; price: number };
  * const filter: Filter<Product> = {
  *   operator: 'AND',
  *   data: [
@@ -97,6 +98,9 @@ export type FilterHasDataAbsolute<T = any> =
 
 /** `dataType: 'field'` — so sánh field với field khác (vd `price > cost`). Compare two fields. */
 export interface FilterHasDataField<T = any> extends FilterHasDataBase<T, FilterSingleValueOperator> {
+  /**
+   * Required `'field'` discriminator: data is a path in the same entity, not a literal value.
+   */
   dataType: 'field';
   /** Path của field dùng làm vế phải. Dot-notation path of the field used as the operand. */
   data: NestedKeyOf<T>;
@@ -104,6 +108,10 @@ export interface FilterHasDataField<T = any> extends FilterHasDataBase<T, Filter
 
 /** `dataType: 'date-today'` — vế phải là đầu ngày hôm nay. The operand is the start of today. */
 export interface FilterHasDataToday<T = any> extends FilterHasDataBase<T, FilterScalarOperator> {
+  /**
+   * Required `'date-today'` discriminator: resolve the TODAY sentinel using MatchOptions.now
+   * and timeZone, defaulting to the current clock and host-local calendar.
+   */
   dataType: 'date-today';
   /** Hằng cố định. Fixed sentinel. */
   data: 'TODAY';
@@ -111,6 +119,10 @@ export interface FilterHasDataToday<T = any> extends FilterHasDataBase<T, Filter
 
 /** `dataType: 'date-relative'` — vế phải là mốc tương đối. The operand is a {@link DateRelative}. */
 export interface FilterHasDataRelative<T = any> extends FilterHasDataBase<T, FilterScalarOperator> {
+  /**
+   * Required `'date-relative'` discriminator: resolve data as a DateRelative specification
+   * using the evaluator's clock and optional timezone.
+   */
   dataType: 'date-relative';
   /** Spec ngày tương đối. The relative-date spec. */
   data: DateRelative;
@@ -126,14 +138,16 @@ export interface FilterHasDataRelative<T = any> extends FilterHasDataBase<T, Fil
  * @template T - The entity type being filtered.
  *
  * @example
+ * type Product = { category: string; price: number; cost: number };
+ * type SalesOrder = { createdAt: string };
  * // literal (mặc định) / literal (default)
  * const a: FilterHasData<Product> = { field: 'category', operator: 'EQUAL', data: 'electronics' };
  * // field vs field
  * const b: FilterHasData<Product> = { field: 'price', operator: 'GREATER_THAN', dataType: 'field', data: 'cost' };
  * // hôm nay / today
- * const c: FilterHasData<Order> = { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-today', data: 'TODAY' };
+ * const c: FilterHasData<SalesOrder> = { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-today', data: 'TODAY' };
  * // 7 ngày trước / 7 days ago
- * const d: FilterHasData<Order> = { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-relative', data: { amount: 7, direction: 'previous', unit: 'day' } };
+ * const d: FilterHasData<SalesOrder> = { field: 'createdAt', operator: 'GREATER_OR_EQUAL', dataType: 'date-relative', data: { amount: 7, direction: 'previous', unit: 'day' } };
  */
 export type FilterHasData<T = any> =
   | FilterHasDataAbsolute<T>
@@ -148,7 +162,8 @@ export type FilterHasData<T = any> =
  * @template T - The entity type being filtered.
  *
  * @example
- * const f: FilterBetween<Order> = {
+ * type SalesOrder = { createdAt: string };
+ * const f: FilterBetween<SalesOrder> = {
  *   field: 'createdAt',
  *   operator: 'BETWEEN',
  *   data: { from: '2024-01-01', to: '2024-12-31' },
@@ -157,6 +172,9 @@ export type FilterHasData<T = any> =
 export interface FilterBetween<T = any> {
   /** Dot-notation path of the field to filter on. */
   field: NestedKeyOf<T>;
+  /**
+   * Required `'BETWEEN'` discriminator; both lower and upper bounds are inclusive.
+   */
   operator: 'BETWEEN';
   /**
    * Unit for numeric date values on this filter. Overrides evaluator-level timestamp options.
@@ -179,6 +197,7 @@ export interface FilterBetween<T = any> {
  * @template T - The entity type being filtered.
  *
  * @example
+ * type User = { deletedAt: Date | null };
  * const f: FilterNoData<User> = { field: 'deletedAt', operator: 'NULL' };
  */
 export interface FilterNoData<T = any> {
@@ -195,6 +214,7 @@ export interface FilterNoData<T = any> {
  * @template T - The entity type being filtered.
  *
  * @example
+ * type Product = { status: string };
  * const f: FilterAndOr<Product> = {
  *   operator: 'OR',
  *   data: [
@@ -223,7 +243,14 @@ export type FilterFieldType = 'string' | 'number' | 'boolean' | 'date';
 
 declare const validatedFilterBrand: unique symbol;
 
-/** A filter definition that passed runtime shape, operand, path, depth, and cycle validation. */
+/**
+ * Filter shape returned after runtime validation of operators, operands, paths, depth, and cycles.
+ * The brand is compile-time evidence; it is not an enumerable runtime field, immutable guarantee,
+ * or authorization marker. Do not mutate validated data and assume its evidence remains valid.
+ *
+ * @typeParam T - Entity type used for field-path inference, default any.
+ * @example const filter: ValidatedFilter<{ id: number }> = validateFilter({ field: 'id', operator: 'EQUAL', data: 1 });
+ */
 export type ValidatedFilter<T = any> = Filter<T> & { readonly [validatedFilterBrand]: true };
 
 /**
@@ -233,13 +260,10 @@ export type ValidatedFilter<T = any> = Filter<T> & { readonly [validatedFilterBr
  */
 export interface MatchOptions<T = any> {
   /**
-   * Bản đồ `field path → kiểu`. Field-path → declared-type map.
-   *
-   * Caller nào biết kiểu (query-builder qua `SdQueryBuilderField.type`, form-generic qua
-   * `Attribute.type`) nên truyền vào để loại bỏ hoàn toàn việc đoán kiểu khi so sánh —
-   * đặc biệt cho date trả về dạng number timestamp, hoặc so sánh field-với-field.
-   * Pass this when the caller knows the types to remove all guessing — especially for dates
-   * returned as numeric timestamps, or field-to-field comparisons.
+   * Optional map of field paths to explicit comparison types. Own data properties are used;
+   * inherited entries and getters are ignored. Providing a type removes inference for that field.
+   * Date fields represented numerically also need a timestamp unit. An unsupported runtime
+   * type value encountered during evaluation throws FilterValidationError.
    */
   fieldTypes?: Partial<Record<NestedKeyOf<T> & string, FilterFieldType>>;
   /**
@@ -247,7 +271,11 @@ export interface MatchOptions<T = any> {
    * Prefer `timestampUnits` or a filter-level `timestampUnit` when fields use different representations.
    */
   timestampUnit?: FilterTimestampUnit;
-  /** Per-field timestamp units. Own data properties are read; inherited values/getters are ignored. */
+  /**
+   * Optional per-field numeric date units, read from own data properties only. A filter-level
+   * timestampUnit takes precedence; this map takes precedence over the global timestampUnit.
+   * These options describe date representations, not a conversion for ordinary number fields.
+   */
   timestampUnits?: Partial<Record<NestedKeyOf<T> & string, FilterTimestampUnit>>;
   /**
    * Explicit compatibility switch for the unchanged v1.x `< 1e12 = seconds` heuristic.
@@ -255,13 +283,26 @@ export interface MatchOptions<T = any> {
    * instead. Enabling it can reinterpret legitimate pre-2001 millisecond timestamps.
    */
   legacyTimestampInference?: boolean;
-  /** Maximum nested logical-filter depth. Defaults to `32`. */
+  /**
+   * Maximum logical-filter depth, default 32. Root depth is 0; a nonnegative safe integer
+   * is required. A value of 0 allows only the root node, without nested child filters.
+   */
   maxDepth?: number;
-  /** Maximum property-path segments. Defaults to the shared safe-path limit. */
+  /**
+   * Maximum number of safe-path segments, default 32; must be a positive safe integer.
+   * Applies to both left-hand field paths and field-reference operands.
+   */
   maxPathDepth?: number;
-  /** `nullish` makes missing paths satisfy `NULL`; `distinct` treats missing as a non-match. */
+  /**
+   * NULL/NOT_NULL policy, default `'nullish'`: absent, undefined, and null count as null.
+   * `'distinct'` makes absent paths match neither operator; an own undefined value is NOT_NULL,
+   * while only explicit null satisfies NULL. Other comparisons still require present operands.
+   */
   missingValuePolicy?: 'nullish' | 'distinct';
-  /** Deterministic reference time used by today/relative-date operands. */
+  /**
+   * Valid reference Date for today/relative operands, default current clock when evaluated.
+   * Supply a fixed Date for repeatable filtering; the evaluator does not mutate it.
+   */
   now?: Date;
   /**
    * IANA time zone (`Asia/Ho_Chi_Minh`) for date-today, date-relative and zone-less date strings.

@@ -1,11 +1,24 @@
 import { UnsafePropertyPathError } from '../errors';
 import { assertSafeObjectKey } from './security';
 
-/** Options for safe own-property path traversal. */
+/**
+ * Shared policy for safe dot/bracket traversal used by getNestedValue and string templates.
+ * Only own properties are traversed; inherited properties and prototype-sensitive segments
+ * are never allowed. Missing paths resolve to undefined. This does not sandbox Proxy traps.
+ *
+ * @example const options: PropertyPathOptions = { maxDepth: 8, allowAccessors: false };
+ */
 export interface PropertyPathOptions {
-  /** Maximum number of path segments. Defaults to `32`. */
+  /**
+   * Maximum number of parsed path segments, default 32. Must be a positive safe integer;
+   * invalid or exceeded limits throw UnsafePropertyPathError rather than returning a missing value.
+   */
   maxDepth?: number;
-  /** Invoke own accessor properties. Disabled by default because getters can have side effects. */
+  /**
+   * Invoke own getters during traversal, default false. With false, accessors are treated as
+   * missing; with true, getters may execute user code, mutate state, or throw. Setter-only properties
+   * have no readable value. This option never enables inherited-property access.
+   */
   allowAccessors?: boolean;
 }
 

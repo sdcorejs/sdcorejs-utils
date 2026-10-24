@@ -10,6 +10,7 @@ import { Order } from './order.model';
  * @template T - The entity type being queried (e.g. `User`).
  *
  * @example
+ * type User = { id: number; name: string; email: string; status: string };
  * const req: QueryReq<User> = {
  *   filters: [{ field: 'status', operator: 'EQUAL', data: 'active' }],
  *   fields: ['id', 'name', 'email'],
@@ -28,6 +29,7 @@ export interface QueryReq<T = any> {
  * @template T - The entity type being queried (e.g. `Product`).
  *
  * @example
+ * type Product = { createdAt: Date; category: string };
  * const req: PagingReq<Product> = {
  *   pageSize: 20,
  *   pageNumber: 0,
@@ -50,6 +52,7 @@ export interface PagingReq<T = any> extends QueryReq<T> {
  * @template T - The entity type contained in the page (e.g. `Product`).
  *
  * @example
+ * type Product = { id: number; name: string };
  * const res: PagingRes<Product> = {
  *   items: [{ id: 1, name: 'Phone' }, { id: 2, name: 'Laptop' }],
  *   total: 154,

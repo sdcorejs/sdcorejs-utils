@@ -1470,16 +1470,22 @@ const dateFunctionSpecs = [
   {
     name: 'addHours',
     signature: 'addHours(value: unknown, hours: number): Date | null',
-    en: 'Adds local clock hours to a supported date value.',
-    vi: 'Cộng giờ đồng hồ local vào giá trị ngày được hỗ trợ.',
+    en: 'Adds local clock hours, including fractional hours, to a supported date value.',
+    vi: 'Cộng giờ đồng hồ local, gồm cả giờ lẻ, vào giá trị ngày được hỗ trợ.',
     parameters: [
       parameter('value', 'unknown', 'Supported date value.', 'Giá trị ngày được hỗ trợ.'),
-      parameter('hours', 'number', 'Finite local clock hours to add.', 'Số giờ đồng hồ local hữu hạn cần cộng.'),
+      parameter('hours', 'number', 'Finite local clock hours to add; 0.5 adds thirty local minutes.', 'Số giờ đồng hồ local hữu hạn cần cộng; 0.5 cộng ba mươi phút local.'),
     ],
     returnsEn: 'A new valid Date, or null for invalid input/result.',
     returnsVi: 'Date hợp lệ mới, hoặc null với đầu vào/kết quả invalid.',
-    runtimeEn: ['Across DST, one local clock hour can represent a different elapsed duration.'],
-    runtimeVi: ['Qua DST, một giờ đồng hồ local có thể biểu diễn thời lượng trôi qua khác.'],
+    runtimeEn: [
+      'The fractional part is rounded to the nearest millisecond; the input Date is not mutated.',
+      'The target local clock is resolved once. Across DST, elapsed time can differ; use addMilliseconds for a fixed-duration TTL.',
+    ],
+    runtimeVi: [
+      'Phần giờ lẻ được làm tròn đến millisecond gần nhất; không sửa Date đầu vào.',
+      'Giờ local đích được xác định trong một lần. Qua DST, thời gian trôi qua có thể khác; dùng addMilliseconds cho TTL có thời lượng cố định.',
+    ],
     securityEn: dateDefaults.securityEn,
     securityVi: dateDefaults.securityVi,
     exampleIds: ['dates-dst'],
